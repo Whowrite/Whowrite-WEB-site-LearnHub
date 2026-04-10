@@ -1,0 +1,22 @@
+/* src/index.css */
+
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Кастомні стилі */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+}
+
+.duration-badge {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+}
