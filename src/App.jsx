@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Home from './pages/Home';
 import CreateLesson from './pages/CreateLesson';
 import LessonPage from './pages/LessonPage';
+import Profile from './pages/Profile';
 import AuthModal from './components/auth/AuthModal';
 import { onAuthStateChange } from './firebase/authService';
 
@@ -50,6 +51,16 @@ function App() {
               onLoginClick={() => setShowAuthModal(true)} 
               />
             } 
+        />
+
+        <Route 
+          path="/profile" 
+          element={
+          <Profile 
+            user={user} 
+            onLoginClick={() => setShowAuthModal(true)} 
+          />
+        } 
         />
       </Routes>
 

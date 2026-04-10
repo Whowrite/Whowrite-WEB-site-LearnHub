@@ -29,7 +29,10 @@ export default function Navbar({ user, onLoginClick }) {
       <div className="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
         
         {/* Logo */}
-        <div className="flex items-center gap-x-3">
+        <div 
+          className="flex items-center gap-x-3"
+          onClick={() => navigate('/')}
+        >
           <div className="w-10 h-10 bg-sky-500 rounded-3xl flex items-center justify-center text-white text-3xl shadow-inner">
             📹
           </div>
@@ -65,7 +68,10 @@ export default function Navbar({ user, onLoginClick }) {
 
           {user ? (
             <div className="flex items-center gap-x-4">
-              <div className="flex items-center gap-x-3">
+              <div 
+                className="flex items-center gap-x-3"
+                onClick={() => navigate('/profile')}
+              >
                 <img 
                   src={user.photoURL || `https://i.pravatar.cc/128?u=${user.uid}`} 
                   alt={user.displayName || 'Користувач'} 
@@ -75,7 +81,6 @@ export default function Navbar({ user, onLoginClick }) {
                   <p className="font-medium text-gray-800 text-sm leading-none">
                     {user.displayName || user.email?.split('@')[0]}
                   </p>
-                  <p className="text-gray-500 text-xs">Онлайн</p>
                 </div>
               </div>
 
