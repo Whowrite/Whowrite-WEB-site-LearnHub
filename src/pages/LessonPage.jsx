@@ -216,7 +216,7 @@ export default function LessonPage({ user, onLoginClick }) {
                 <p className="text-sm text-gray-500 mb-3">Автор</p>
                 <div className="flex items-center gap-4">
                   <img 
-                    src={`https://i.pravatar.cc/128?u=${lesson.author_id}`} 
+                    src={lesson.author_avatar || `https://i.pravatar.cc/128?u=${lesson.author_id}`}
                     alt={lesson.author_name}
                     className="w-14 h-14 rounded-2xl"
                   />

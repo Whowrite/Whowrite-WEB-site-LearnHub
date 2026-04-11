@@ -5,7 +5,7 @@ import Navbar from '../components/layout/Navbar';
 import { addLesson } from '../firebase/firestoreService';
 import { auth } from '../firebase/config';
 
-export default function CreateLesson({ user, onLoginClick }) {
+export default function CreateLesson() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -26,7 +26,7 @@ export default function CreateLesson({ user, onLoginClick }) {
     "Python", "English"
   ];
 
-  // Перевірка авторизації при завантаженні сторінки
+  // Перевірка авторизації
   useEffect(() => {
     if (!auth.currentUser) {
       alert("Для створення уроку потрібно увійти в акаунт");
@@ -88,6 +88,8 @@ export default function CreateLesson({ user, onLoginClick }) {
         ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
         : '';
 
+      const currentUser = auth.currentUser;
+
       const lessonData = {
         title: formData.title.trim(),
         description: formData.description.trim() || '',
@@ -95,8 +97,12 @@ export default function CreateLesson({ user, onLoginClick }) {
         thumbnail_url: thumbnailUrl,
         duration_minutes: parseFloat(formData.duration_minutes),
         categories: formData.categories,
-        author_id: auth.currentUser.uid,
-        author_name: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Анонім',
+        
+        // === Дані автора ===
+        author_id: currentUser.uid,
+        author_name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Анонім',
+        author_avatar: currentUser.photoURL || `https://i.pravatar.cc/128?u=${currentUser.uid}`, // ← Додано
+
         uploaded_at: new Date(),
         is_approved: false,
         views_count: 0,
@@ -108,10 +114,9 @@ export default function CreateLesson({ user, onLoginClick }) {
 
       setSuccess(true);
 
-      // Переходимо на головну через 2 секунди
       setTimeout(() => {
         navigate('/');
-      }, 2000);
+      }, 1800);
 
     } catch (err) {
       console.error(err);
@@ -123,17 +128,13 @@ export default function CreateLesson({ user, onLoginClick }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar на сторінці створення уроку */}
-      <Navbar 
-        user={auth.currentUser} 
-        onLoginClick={() => {}} // Не потрібен на цій сторінці
-      />
+      <Navbar user={auth.currentUser} onLoginClick={() => {}} />
 
       <div className="max-w-2xl mx-auto px-6 pt-8 pb-16">
         <div className="mb-10">
           <button 
             onClick={() => navigate('/')}
-            className="flex items-center gap-x-2 text-gray-600 hover:text-gray-900 mb-6"
+            className="flex items-center gap-x-2 text-gray-600 hover:text-gray-900 mb-6 font-medium"
           >
             ← Повернутися на головну
           </button>

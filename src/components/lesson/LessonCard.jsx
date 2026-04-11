@@ -31,7 +31,7 @@ export default function LessonCard({ lesson, onClick }) {
 
         <div className="flex items-center gap-x-3 mt-6">
           <img 
-            src={lesson.author_avatar || "https://i.pravatar.cc/128?img=44"} 
+            src={lesson.author_avatar || `https://i.pravatar.cc/128?u=${lesson.author_id}`}
             alt={authorName}
             className="w-9 h-9 rounded-2xl object-cover ring-2 ring-white shadow-sm"
           />
