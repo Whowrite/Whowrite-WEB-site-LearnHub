@@ -14,6 +14,8 @@ export default function CreateLesson() {
     youtubeUrl: '',
     duration_minutes: 5,
     categories: [],
+    hasQuiz: false,
+    quizQuestions: []
   });
 
   const [loading, setLoading] = useState(false);
@@ -25,6 +27,58 @@ export default function CreateLesson() {
     "Music", "Guitar", "Psychology", "Career", "IT", 
     "Python", "English"
   ];
+
+  // Додавання нового питання
+  const addQuestion = () => {
+    if (formData.quizQuestions.length >= 5) return;
+
+    setFormData(prev => ({
+      ...prev,
+      quizQuestions: [
+        ...prev.quizQuestions,
+        {
+          question: '',
+          options: ['', '', '', ''],
+          correctAnswer: 0
+        }
+      ]
+    }));
+  };
+
+// Зміна питання
+  const updateQuestion = (index, field, value) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.quizQuestions];
+      newQuestions[index][field] = value;
+      return { ...prev, quizQuestions: newQuestions };
+    });
+  };
+
+  // Зміна варіанту відповіді
+  const updateOption = (qIndex, optIndex, value) => {
+    setFormData(prev => {
+      const newQuestions = [...prev.quizQuestions];
+      newQuestions[qIndex].options[optIndex] = value;
+      return { ...prev, quizQuestions: newQuestions };
+    });
+  };
+
+  // Видалення питання
+  const removeQuestion = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      quizQuestions: prev.quizQuestions.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Перемикач "Додати міні-тест"
+  const toggleQuiz = () => {
+    setFormData(prev => ({
+      ...prev,
+      hasQuiz: !prev.hasQuiz,
+      quizQuestions: prev.hasQuiz ? [] : prev.quizQuestions
+    }));
+  };
 
   // Перевірка авторизації
   useEffect(() => {
@@ -82,6 +136,13 @@ export default function CreateLesson() {
       return;
     }
 
+    // Валідація питань, якщо тест увімкнено
+    if (formData.hasQuiz && formData.quizQuestions.length === 0) {
+      setError("Додайте хоча б одне питання до тесту");
+      setLoading(false);
+      return;
+    }
+
     try {
       const youtubeId = extractYouTubeId(formData.youtubeUrl);
       const thumbnailUrl = youtubeId 
@@ -102,6 +163,10 @@ export default function CreateLesson() {
         author_id: currentUser.uid,
         author_name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Анонім',
         author_avatar: currentUser.photoURL || `https://i.pravatar.cc/128?u=${currentUser.uid}`, // ← Додано
+        
+        // Міні-тест
+        has_quiz: formData.hasQuiz,
+        quiz_questions: formData.hasQuiz ? formData.quizQuestions : [],
 
         uploaded_at: new Date(),
         is_approved: false,
@@ -227,6 +292,84 @@ export default function CreateLesson() {
                 </button>
               ))}
             </div>
+          </div>
+          
+          {/* === НОВИЙ БЛОК: Міні-тест === */}
+          <div className="pt-6 border-t">
+            <div className="flex items-center justify-between mb-4">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.hasQuiz}
+                  onChange={toggleQuiz}
+                  className="w-4 h-4 accent-black"
+                />
+                Додати міні-тест після уроку (макс. 5 питань)
+              </label>
+              {formData.hasQuiz && (
+                <span className="text-xs text-gray-500">
+                  {formData.quizQuestions.length}/5
+                </span>
+              )}
+            </div>
+
+            {formData.hasQuiz && (
+              <div className="space-y-8">
+                {formData.quizQuestions.map((q, qIndex) => (
+                  <div key={qIndex} className="border border-gray-200 rounded-2xl p-6 bg-gray-50">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-medium">Питання {qIndex + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => removeQuestion(qIndex)}
+                        className="text-red-600 hover:text-red-700 text-xl leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={q.question}
+                      onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
+                      placeholder="Введіть текст питання"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl mb-4"
+                    />
+
+                    <div className="space-y-3">
+                      {q.options.map((option, optIndex) => (
+                        <div key={optIndex} className="flex gap-3 items-center">
+                          <input
+                            type="radio"
+                            name={`correct-${qIndex}`}
+                            checked={q.correctAnswer === optIndex}
+                            onChange={() => updateQuestion(qIndex, 'correctAnswer', optIndex)}
+                            className="accent-black"
+                          />
+                          <input
+                            type="text"
+                            value={option}
+                            onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
+                            placeholder={`Варіант ${optIndex + 1}`}
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-2xl"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {formData.quizQuestions.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={addQuestion}
+                    className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-all"
+                  >
+                    + Додати ще питання
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {error && (

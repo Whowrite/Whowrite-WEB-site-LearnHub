@@ -88,20 +88,13 @@ export const updateLessonProgress = async (userId, lessonId, progressData) => {
 
 // ==================== QUIZZES ====================
 
-export const createQuiz = async (lessonId, quizData) => {
-  await setDoc(doc(db, 'quizzes', lessonId), {
-    lesson_id: lessonId,
-    title: quizData.title || "Перевір себе після уроку",
-    passing_score: quizData.passing_score || 70,
-    created_at: serverTimestamp()
-  });
-};
-
+// Зберегти результат тесту
 export const saveTestResult = async (userId, lessonId, resultData) => {
   const resultRef = await addDoc(
-    collection(db, 'quizzes', lessonId, 'testResults'),
+    collection(db, 'testResults'),
     {
       user_id: userId,
+      lesson_id: lessonId,
       score: resultData.score,
       max_score: resultData.max_score,
       passed: resultData.passed,
@@ -123,6 +116,5 @@ export default {
   incrementViews,
   createUserProfile,
   updateLessonProgress,
-  createQuiz,
   saveTestResult,
 };

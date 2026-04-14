@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
-import { getLessonById, incrementViews } from '../firebase/firestoreService';
-import { auth } from '../firebase/config';
+import { getLessonById, incrementViews, saveTestResult, updateLessonProgress } from '../firebase/firestoreService';
+import { auth, db } from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function LessonPage({ user, onLoginClick }) {
   const { lessonId } = useParams();
@@ -14,25 +15,49 @@ export default function LessonPage({ user, onLoginClick }) {
   const [error, setError] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
 
+  // Стан модального вікна тесту
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [testCompleted, setTestCompleted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [showResults, setShowResults] = useState(false);
+
   useEffect(() => {
-    const fetchLesson = async () => {
+    const fetchLessonAndProgress = async () => {
+      if (!auth.currentUser) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const data = await getLessonById(lessonId);
-        if (!data) {
+        // 1. Завантажуємо дані уроку
+        const lessonData = await getLessonById(lessonId);
+        if (!lessonData) {
           setError("Урок не знайдено");
           return;
         }
-        setLesson(data);
+        setLesson(lessonData);
         await incrementViews(lessonId);
+
+        // 2. Перевіряємо, чи урок вже пройдено користувачем
+        const progressId = `${auth.currentUser.uid}_${lessonId}`;
+        const progressRef = doc(db, 'progress', progressId);   // потрібно імпортувати doc
+        const progressSnap = await getDoc(progressRef);
+
+        if (progressSnap.exists()) {
+          const progressData = progressSnap.data();
+          setIsCompleted(progressData.is_completed === true);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Помилка завантаження уроку або прогресу:", err);
         setError("Не вдалося завантажити урок");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLesson();
+    fetchLessonAndProgress();
   }, [lessonId]);
 
   // === Виправлена функція отримання YouTube ID ===
@@ -67,6 +92,88 @@ export default function LessonPage({ user, onLoginClick }) {
           month: '2-digit', 
           year: 'numeric' 
         });
+  };
+
+  // === Логіка тесту ===
+  const startTest = () => {
+    if (!user) {
+      onLoginClick();
+      return;
+    }
+    if (!lesson?.has_quiz || !lesson.quiz_questions?.length) {
+      alert("Для цього уроку тест ще не додано");
+      return;
+    }
+
+    setIsTestModalOpen(true);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers({});
+    setTestCompleted(false);
+    setShowResults(false);
+    setScore(0);
+  };
+
+  const handleAnswerSelect = (questionIndex, optionIndex) => {
+    setSelectedAnswers(prev => ({
+      ...prev,
+      [questionIndex]: optionIndex
+    }));
+  };
+
+  const goToNextQuestion = () => {
+    if (currentQuestionIndex < lesson.quiz_questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      finishTest();
+    }
+  };
+
+  const finishTest = () => {
+    let correctCount = 0;
+    const questions = lesson.quiz_questions;
+
+    questions.forEach((q, index) => {
+      if (selectedAnswers[index] === q.correctAnswer) {
+        correctCount++;
+      }
+    });
+
+    const finalScore = Math.round((correctCount / questions.length) * 100);
+    const passed = finalScore >= 70; // прохідний бал 70%
+
+    setScore(finalScore);
+    setTestCompleted(true);
+    setShowResults(true);
+
+    // Зберігаємо результат у Firebase
+    if (auth.currentUser) {
+      saveTestResult(auth.currentUser.uid, lessonId, {
+        score: finalScore,
+        max_score: 100,
+        passed: passed,
+        answers: Object.entries(selectedAnswers).map(([qIndex, ans]) => ({
+          questionIndex: parseInt(qIndex),
+          selectedAnswer: ans
+        }))
+      }).catch(err => console.error("Помилка збереження результату:", err));
+    }
+
+    if (passed) {
+      setIsCompleted(true);
+    }
+  };
+
+  const resetTest = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers({});
+    setShowResults(false);
+    setTestCompleted(false);
+    setScore(0);
+  };
+
+  const closeTestModal = () => {
+    setIsTestModalOpen(false);
+    // Якщо тест пройдено успішно — залишаємо completed
   };
 
   const handleMarkAsLearned = () => {
@@ -109,6 +216,8 @@ export default function LessonPage({ user, onLoginClick }) {
       </div>
     );
   }
+
+  const currentQuestion = lesson.quiz_questions?.[currentQuestionIndex];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -193,10 +302,11 @@ export default function LessonPage({ user, onLoginClick }) {
               </button>
 
               <button
-                onClick={handleTakeTest}
-                className="flex-1 py-4 border-2 border-gray-800 hover:bg-gray-900 hover:text-white font-semibold text-lg rounded-3xl transition-all"
+                onClick={startTest}
+                disabled={!lesson.has_quiz || !lesson.quiz_questions?.length}
+                className="flex-1 py-4 border-2 border-gray-800 hover:bg-gray-900 hover:text-white font-semibold text-lg rounded-3xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Пройти тестування
+                {lesson.has_quiz ? "Пройти міні-тест" : "Тест скоро буде"}
               </button>
             </div>
 
@@ -232,6 +342,89 @@ export default function LessonPage({ user, onLoginClick }) {
           </div>
         </div>
       </div>
+
+      {/* ====================== МОДАЛЬНЕ ВІКНО ТЕСТУ ====================== */}
+      {isTestModalOpen && lesson?.quiz_questions && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            
+            {/* Заголовок */}
+            <div className="px-8 py-6 border-b flex items-center justify-between bg-gray-50 rounded-t-3xl">
+              <h2 className="text-2xl font-semibold">Міні-тест</h2>
+              <button onClick={closeTestModal} className="text-3xl text-gray-400 hover:text-gray-600">×</button>
+            </div>
+
+            {/* Контент тесту */}
+            <div className="flex-1 p-8 overflow-y-auto">
+              {!showResults ? (
+                // Питання
+                <div>
+                  <div className="flex justify-between text-sm text-gray-500 mb-6">
+                    <span>Питання {currentQuestionIndex + 1} з {lesson.quiz_questions.length}</span>
+                    <span>{Math.round(((currentQuestionIndex + 1) / lesson.quiz_questions.length) * 100)}%</span>
+                  </div>
+
+                  <h3 className="text-xl font-medium mb-8 leading-relaxed">
+                    {currentQuestion?.question}
+                  </h3>
+
+                  <div className="space-y-3">
+                    {currentQuestion?.options.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswerSelect(currentQuestionIndex, index)}
+                        className={`w-full text-left px-6 py-4 rounded-2xl border transition-all ${
+                          selectedAnswers[currentQuestionIndex] === index
+                            ? 'border-sky-500 bg-sky-50 text-sky-700'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                // Результати
+                <div className="text-center py-8">
+                  <div className={`text-7xl mb-6 ${score >= 70 ? 'text-green-500' : 'text-orange-500'}`}>
+                    {score >= 70 ? '🎉' : '📝'}
+                  </div>
+                  <h3 className="text-3xl font-semibold mb-2">
+                    Ваш результат: <span className={score >= 70 ? 'text-green-600' : 'text-orange-600'}>{score}%</span>
+                  </h3>
+                  <p className="text-gray-600 mb-8">
+                    {score >= 70 
+                      ? "Відмінно! Ви успішно пройшли тест." 
+                      : "Можна краще! Спробуйте ще раз."}
+                  </p>
+
+                  <button
+                    onClick={resetTest}
+                    className="px-8 py-3 bg-black text-white rounded-3xl hover:bg-gray-800 mb-4"
+                  >
+                    Спробувати ще раз
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Кнопки управління */}
+            {!showResults && (
+              <div className="p-8 border-t bg-white">
+                <button
+                  onClick={goToNextQuestion}
+                  disabled={selectedAnswers[currentQuestionIndex] === undefined}
+                  className="w-full py-4 bg-black text-white font-semibold rounded-3xl disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {currentQuestionIndex === lesson.quiz_questions.length - 1 ? "Завершити тест" : "Наступне питання"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
