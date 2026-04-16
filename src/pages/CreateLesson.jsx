@@ -25,7 +25,10 @@ export default function CreateLesson() {
   const availableCategories = [
     "React", "JavaScript", "UI/UX", "Design", "Cooking", 
     "Music", "Guitar", "Psychology", "Career", "IT", 
-    "Python", "English"
+    "Python", "English", "Математика", "Фізика", "Історія",
+    "Література", "Філософія", "Мистецтво", "Фотографія", "Маркетинг",
+    "Бізнес", "Фінанси", "Здоров'я", "Спорт", "Подорожі", "Українська мова",
+     "Психологія", "Саморозвиток", "Медицина", "Геймінг"
   ];
 
   // Додавання нового питання

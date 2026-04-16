@@ -31,7 +31,7 @@ export default function LessonPage({ user, onLoginClick }) {
       }
 
       try {
-        // 1. Завантажуємо дані уроку
+        // Завантажуємо дані уроку
         const lessonData = await getLessonById(lessonId);
         if (!lessonData) {
           setError("Урок не знайдено");
@@ -40,7 +40,7 @@ export default function LessonPage({ user, onLoginClick }) {
         setLesson(lessonData);
         await incrementViews(lessonId);
 
-        // 2. Перевіряємо, чи урок вже пройдено користувачем
+        // Перевіряємо, чи урок вже пройдено користувачем
         const progressId = `${auth.currentUser.uid}_${lessonId}`;
         const progressRef = doc(db, 'progress', progressId);   // потрібно імпортувати doc
         const progressSnap = await getDoc(progressRef);
@@ -60,7 +60,7 @@ export default function LessonPage({ user, onLoginClick }) {
     fetchLessonAndProgress();
   }, [lessonId]);
 
-  // === Виправлена функція отримання YouTube ID ===
+  // Функція отримання YouTube ID
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
 
@@ -94,7 +94,7 @@ export default function LessonPage({ user, onLoginClick }) {
         });
   };
 
-  // === Логіка тесту ===
+  // Логіка тесту
   const startTest = () => {
     if (!user) {
       onLoginClick();
@@ -146,7 +146,7 @@ export default function LessonPage({ user, onLoginClick }) {
     setShowResults(true);
 
     // Зберігаємо результат у Firebase
-    if (auth.currentUser) {
+    if (auth.currentUser && !isCompleted) {
       saveTestResult(auth.currentUser.uid, lessonId, {
         score: finalScore,
         max_score: 100,
@@ -176,13 +176,28 @@ export default function LessonPage({ user, onLoginClick }) {
     // Якщо тест пройдено успішно — залишаємо completed
   };
 
-  const handleMarkAsLearned = () => {
+  const handleMarkAsLearned = async () => {
     if (!user) {
       onLoginClick();
       return;
     }
-    setIsCompleted(true);
-    alert("✅ Урок позначено як вивчений!");
+    if (isCompleted) return;
+
+    try {
+      await updateLessonProgress(auth.currentUser.uid, lessonId, {
+        is_completed: true,
+        last_position_seconds: 999999,
+        completed_at: new Date()
+      });
+
+      setIsCompleted(true);
+      
+      alert("✅ Урок успішно позначено як вивчений!");
+
+    } catch (err) {
+      console.error("Помилка збереження прогресу:", err);
+      alert("Не вдалося зберегти прогрес. Спробуйте ще раз.");
+    }
   };
 
   const handleTakeTest = () => {
@@ -343,7 +358,7 @@ export default function LessonPage({ user, onLoginClick }) {
         </div>
       </div>
 
-      {/* ====================== МОДАЛЬНЕ ВІКНО ТЕСТУ ====================== */}
+      {/* МОДАЛЬНЕ ВІКНО ТЕСТУ */}
       {isTestModalOpen && lesson?.quiz_questions && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
