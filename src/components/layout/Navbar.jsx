@@ -53,7 +53,7 @@ export default function Navbar({ user, onLoginClick }) {
 
         {/* Right side */}
         <div className="flex items-center gap-x-6">
-          <button className="p-3 hover:bg-gray-100 rounded-3xl transition-colors">
+          <button className="p-3 hover:bg-gray-100 rounded-3xl transition-colors" onClick={() => navigate('/')}>
             <i className="fa-solid fa-house text-2xl text-gray-700"></i>
           </button>
 

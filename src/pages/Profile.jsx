@@ -47,12 +47,12 @@ export default function Profile({ user, onLoginClick }) {
   });
 
   const availableCategories = [
-    "React", "JavaScript", "UI/UX", "Design", "Cooking", 
-    "Music", "Guitar", "Psychology", "Career", "IT", 
+    "React", "JavaScript", "UI/UX", "Design", "Cooking",
+    "Music", "Guitar", "Psychology", "Career", "IT",
     "Python", "English", "Математика", "Фізика", "Історія",
     "Література", "Філософія", "Мистецтво", "Фотографія", "Маркетинг",
     "Бізнес", "Фінанси", "Здоров'я", "Спорт", "Подорожі", "Українська мова",
-     "Психологія", "Саморозвиток", "Медицина", "Геймінг"
+    "Психологія", "Саморозвиток", "Медицина", "Геймінг"
   ];
 
   // Завантаження профілю та уроків користувача при відкритті сторінки
@@ -178,10 +178,10 @@ export default function Profile({ user, onLoginClick }) {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => { setAvatarValidating(false); resolve(true); };
-      img.onerror = () => { 
-        setAvatarValidating(false); 
-        setAvatarError("Посилання не веде на зображення або недоступне"); 
-        resolve(false); 
+      img.onerror = () => {
+        setAvatarValidating(false);
+        setAvatarError("Посилання не веде на зображення або недоступне");
+        resolve(false);
       };
       img.src = url;
     });
@@ -257,6 +257,7 @@ export default function Profile({ user, onLoginClick }) {
       categories: lesson.categories || [],
       hasQuiz: lesson.has_quiz || false,
       quizQuestions: lesson.quiz_questions || [],
+      allowComments: lesson.allow_comments === true,
     });
     setIsEditLessonModalOpen(true);
   };
@@ -323,6 +324,7 @@ export default function Profile({ user, onLoginClick }) {
         categories: editLessonForm.categories,
         has_quiz: editLessonForm.hasQuiz,
         quiz_questions: editLessonForm.hasQuiz ? editLessonForm.quizQuestions : [],
+        allow_comments: editLessonForm.allowComments === true,
       });
 
       alert("Урок успішно оновлено!");
@@ -364,11 +366,11 @@ export default function Profile({ user, onLoginClick }) {
 
       <div className="max-w-5xl mx-auto px-6 py-10">
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          <div 
+          <div
             className="relative group cursor-pointer"
             onClick={() => setIsAvatarModalOpen(true)}
           >
-            <img 
+            <img
               src={profileData?.avatar_url || `https://i.pravatar.cc/128?u=${auth.currentUser.uid}`}
               alt="Аватар"
               className="w-32 h-32 rounded-3xl object-cover border-4 border-white shadow-md"
@@ -383,7 +385,7 @@ export default function Profile({ user, onLoginClick }) {
               <h1 className="text-4xl font-semibold text-gray-900">
                 {profileData?.full_name || user?.displayName}
               </h1>
-              <button 
+              <button
                 onClick={() => setisEditProfileModalOpen(true)}
                 className="text-sky-600 hover:text-sky-700 text-sm font-medium"
               >
@@ -431,19 +433,19 @@ export default function Profile({ user, onLoginClick }) {
 
                   {/* Кнопки редагування та видалення */}
                   <div className="absolute top-4 right-4 flex gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEditLessonModal(lesson); }}
-                        className="bg-white p-2 rounded-full shadow hover:bg-gray-100"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteLesson(lesson.id); }}
-                        className="bg-white p-2 rounded-full shadow hover:bg-red-50 text-red-600"
-                      >
-                        🗑️
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEditLessonModal(lesson); }}
+                      className="bg-white p-2 rounded-full shadow hover:bg-gray-100"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteLesson(lesson.id); }}
+                      className="bg-white p-2 rounded-full shadow hover:bg-red-50 text-red-600"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -452,7 +454,7 @@ export default function Profile({ user, onLoginClick }) {
               {learnedLessons.map(lesson => (
                 <div key={lesson.id} className="relative">
                   <LessonCard lesson={lesson} onClick={handleLessonClick} />
-                  
+
                   {/* Позначка "Вивчено" */}
                   <div className="absolute top-4 right-4 bg-green-500 text-white text-xs px-3 py-1 rounded-3xl font-medium flex items-center gap-1">
                     <i className="fa-solid fa-check"></i>
@@ -469,7 +471,7 @@ export default function Profile({ user, onLoginClick }) {
           ) : null}
         </div>
       </div>
-      
+
       {/* Модальне вікно редагування уроку */}
       {isEditLessonModalOpen && selectedLesson && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -544,8 +546,8 @@ export default function Profile({ user, onLoginClick }) {
                           }));
                         }}
                         className={`px-4 py-2 rounded-3xl text-sm font-medium transition-all ${isSelected
-                            ? 'bg-sky-500 text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-sky-500 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                       >
                         {tag}
@@ -558,6 +560,25 @@ export default function Profile({ user, onLoginClick }) {
                     Вибрано: {editLessonForm.categories.join(', ')}
                   </p>
                 )}
+              </div>
+
+              {/* КОМЕНТАРІ */}
+              <div className="pt-6 border-t">
+                <label className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={editLessonForm.allowComments === true}
+                    onChange={(e) => setEditLessonForm(prev => ({
+                      ...prev,
+                      allowComments: e.target.checked
+                    }))}
+                    className="w-4 h-4 accent-black"
+                  />
+                  Дозволити коментарі під уроком
+                </label>
+                <p className="text-xs text-gray-500 mt-2">
+                  Якщо вимкнути — користувачі не зможуть додавати нові коментарі, але старі залишаться видимими.
+                </p>
               </div>
 
               {/* МІНІ-ТЕСТ */}
@@ -651,7 +672,7 @@ export default function Profile({ user, onLoginClick }) {
         </div>
       )}
 
-      { /* Модальне вікно редагування аватара */ }
+      { /* Модальне вікно редагування аватара */}
       {isAvatarModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl w-full max-w-md p-8">
@@ -667,8 +688,8 @@ export default function Profile({ user, onLoginClick }) {
 
             <div className="flex gap-4">
               <button onClick={() => setIsAvatarModalOpen(false)} className="flex-1 py-3 border rounded-3xl">Скасувати</button>
-              <button 
-                onClick={saveAvatar} 
+              <button
+                onClick={saveAvatar}
                 disabled={avatarValidating || !newAvatarUrl}
                 className="flex-1 py-3 bg-black text-white rounded-3xl disabled:bg-gray-400"
               >
@@ -687,15 +708,15 @@ export default function Profile({ user, onLoginClick }) {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2">Ім'я</label>
-                <input type="text" value={editProfileForm.displayName} onChange={(e) => setisEditProfileModalOpen({...editProfileForm, displayName: e.target.value})} className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
+                <input type="text" value={editProfileForm.displayName} onChange={(e) => setisEditProfileModalOpen({ ...editProfileForm, displayName: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Посилання на фото</label>
-                <input type="text" value={editProfileForm.photoURL} onChange={(e) => setisEditProfileModalOpen({...editProfileForm, photoURL: e.target.value})} className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
+                <input type="text" value={editProfileForm.photoURL} onChange={(e) => setisEditProfileModalOpen({ ...editProfileForm, photoURL: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Біо</label>
-                <textarea value={editProfileForm.bio} onChange={(e) => setisEditProfileModalOpen({...editProfileForm, bio: e.target.value})} rows="4" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
+                <textarea value={editProfileForm.bio} onChange={(e) => setisEditProfileModalOpen({ ...editProfileForm, bio: e.target.value })} rows="4" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
               </div>
             </div>
             <div className="flex gap-4 mt-8">

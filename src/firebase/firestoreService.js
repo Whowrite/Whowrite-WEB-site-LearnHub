@@ -12,11 +12,11 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  increment
+  increment,
+  writeBatch,
+  limit
 } from 'firebase/firestore';
 import { db } from './config';
-
-// ==================== LESSONS ====================
 
 // Додати новий урок
 export const addLesson = async (lessonData) => {
@@ -61,8 +61,6 @@ export const incrementViews = async (lessonId) => {
   });
 };
 
-// ==================== USERS ====================
-
 export const createUserProfile = async (userId, userData) => {
   await setDoc(doc(db, 'users', userId), {
     ...userData,
@@ -72,8 +70,7 @@ export const createUserProfile = async (userId, userData) => {
   });
 };
 
-// ==================== PROGRESS ====================
-
+// Оновити прогрес уроку для користувача
 export const updateLessonProgress = async (userId, lessonId, progressData) => {
   const progressId = `${userId}_${lessonId}`;
   await setDoc(doc(db, 'progress', progressId), {
@@ -85,8 +82,6 @@ export const updateLessonProgress = async (userId, lessonId, progressData) => {
     updated_at: serverTimestamp()
   }, { merge: true });
 };
-
-// ==================== QUIZZES ====================
 
 // Зберегти результат тесту
 export const saveTestResult = async (userId, lessonId, resultData) => {
@@ -107,6 +102,74 @@ export const saveTestResult = async (userId, lessonId, resultData) => {
   await updateLessonProgress(userId, lessonId, { is_completed: resultData.passed });
 
   return resultRef.id;
+};
+
+// Поставити/зняти лайк уроку
+export const toggleLike = async (userId, lessonId) => {
+  const likeId = `${userId}_${lessonId}`;
+  const likeRef = doc(db, 'likes', likeId);
+  const lessonRef = doc(db, 'lessons', lessonId);
+
+  const likeSnap = await getDoc(likeRef);
+
+  const batch = writeBatch(db);
+
+  if (likeSnap.exists()) {
+    // Видаляємо лайк
+    batch.delete(likeRef);
+    batch.update(lessonRef, { likes_count: increment(-1) });
+  } else {
+    // Ставимо лайк
+    batch.set(likeRef, {
+      user_id: userId,
+      lesson_id: lessonId,
+      created_at: serverTimestamp()
+    });
+    batch.update(lessonRef, { likes_count: increment(1) });
+  }
+
+  await batch.commit();
+  return !likeSnap.exists(); // повертаємо true, якщо лайк поставлено
+};
+
+// Перевірити, чи користувач вже лайкнув урок
+export const hasUserLikedLesson = async (userId, lessonId) => {
+  const likeId = `${userId}_${lessonId}`;
+  const likeRef = doc(db, 'likes', likeId);
+  const likeSnap = await getDoc(likeRef);
+  return likeSnap.exists();
+};
+
+// Додати коментар до уроку
+export const addComment = async (lessonId, userId, userName, text, userAvatar) => {
+  if (!text || text.trim() === '') throw new Error("Текст коментаря не може бути порожнім");
+
+  const commentRef = await addDoc(collection(db, 'comments'), {
+    lesson_id: lessonId,
+    user_id: userId,
+    user_name: userName,
+    user_avatar: userAvatar || `https://i.pravatar.cc/128?u=${userId}`,
+    text: text.trim(),
+    created_at: serverTimestamp()
+  });
+
+  return commentRef.id;
+};
+
+// Отримати коментарі до уроку (останні 10)
+export const getLessonComments = async (lessonId) => {
+  const q = query(
+    collection(db, 'comments'),
+    where('lesson_id', '==', lessonId),
+    orderBy('created_at', 'desc'),
+    limit(10)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
 };
 
 export default {

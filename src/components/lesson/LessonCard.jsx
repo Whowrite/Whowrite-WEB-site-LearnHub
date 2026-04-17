@@ -2,7 +2,10 @@
 export default function LessonCard({ lesson, onClick }) {
   // Підтримка різних назв полів (Firestore може мати author_name, author_id тощо)
   const authorName = lesson.author_name || lesson.author || "Невідомий автор";
+
   const views = lesson.views_count || lesson.views || 0;
+  const likes = lesson.likes_count || lesson.likes || 0;
+
   const duration = lesson.duration_minutes 
     ? `${Math.floor(lesson.duration_minutes)}:${String(Math.round((lesson.duration_minutes % 1) * 60)).padStart(2, '0')}` 
     : lesson.duration || "5:00";
@@ -49,9 +52,21 @@ export default function LessonCard({ lesson, onClick }) {
           ))}
         </div>
 
-        <div className="mt-8 flex justify-end text-gray-400 text-sm">
-          <i className="fa-solid fa-eye mr-1.5"></i>
-          <span>{views.toLocaleString('uk-UA')}</span>
+        {/* Статистика: Перегляди + Лайки */}
+        <div className="mt-8 flex items-center justify-between text-sm">
+          {/* Перегляди */}
+          <div className="flex items-center gap-x-1.5 text-gray-500">
+            <i className="fa-solid fa-eye"></i>
+            <span>{views.toLocaleString('uk-UA')}</span>
+          </div>
+
+          {/* Лайки */}
+          <div className="flex items-center gap-x-1.5 text-gray-500">
+            <i className={`fa-solid fa-heart ${likes > 0 ? 'text-red-500' : 'text-gray-400'}`}></i>
+            <span className={likes > 0 ? 'text-red-500 font-medium' : ''}>
+              {likes}
+            </span>
+          </div>
         </div>
       </div>
     </div>

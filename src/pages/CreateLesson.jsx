@@ -15,7 +15,8 @@ export default function CreateLesson() {
     duration_minutes: 5,
     categories: [],
     hasQuiz: false,
-    quizQuestions: []
+    quizQuestions: [],
+    allowComments: true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -162,11 +163,14 @@ export default function CreateLesson() {
         duration_minutes: parseFloat(formData.duration_minutes),
         categories: formData.categories,
         
-        // === Дані автора ===
+        // Дані автора
         author_id: currentUser.uid,
         author_name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Анонім',
         author_avatar: currentUser.photoURL || `https://i.pravatar.cc/128?u=${currentUser.uid}`, // ← Додано
         
+        // Дозвіл на коментарі
+        allow_comments: formData.allowComments,
+
         // Міні-тест
         has_quiz: formData.hasQuiz,
         quiz_questions: formData.hasQuiz ? formData.quizQuestions : [],
@@ -297,6 +301,19 @@ export default function CreateLesson() {
             </div>
           </div>
           
+          {/* Дозволити коментарі */}
+          <div className="pt-4 border-t">
+            <label className="flex items-center gap-3 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={formData.allowComments}
+                onChange={(e) => setFormData(prev => ({ ...prev, allowComments: e.target.value === 'on' }))}
+                className="w-4 h-4 accent-black"
+              />
+              Дозволити коментарі під уроком
+            </label>
+          </div>
+
           {/* === НОВИЙ БЛОК: Міні-тест === */}
           <div className="pt-6 border-t">
             <div className="flex items-center justify-between mb-4">
