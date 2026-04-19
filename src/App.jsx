@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import CreateLesson from './pages/CreateLesson';
 import LessonPage from './pages/LessonPage';
 import Profile from './pages/Profile';
+import PublicProfile from './pages/PublicProfile';
 import AuthModal from './components/auth/AuthModal';
 import { onAuthStateChange } from './firebase/authService';
 
@@ -47,6 +48,16 @@ function App() {
           path="/lesson/:lessonId" 
           element={
             <LessonPage 
+              user={user} 
+              onLoginClick={() => setShowAuthModal(true)} 
+              />
+            } 
+        />
+
+        <Route 
+          path="/u/:userId" 
+          element={
+            <PublicProfile 
               user={user} 
               onLoginClick={() => setShowAuthModal(true)} 
               />

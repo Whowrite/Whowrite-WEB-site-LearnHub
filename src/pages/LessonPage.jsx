@@ -1,6 +1,6 @@
 // src/pages/LessonPage.jsx
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { getLessonById, incrementViews, saveTestResult, updateLessonProgress, toggleLike, hasUserLikedLesson, addComment, getLessonComments } from '../firebase/firestoreService';
 import { doc, getDoc } from 'firebase/firestore';
@@ -9,6 +9,7 @@ import { auth, db } from '../firebase/config';
 export default function LessonPage({ user, onLoginClick }) {
   const { lessonId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,10 @@ export default function LessonPage({ user, onLoginClick }) {
   const [comments, setComments] = useState([]);
   const [newCommentText, setNewCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  const cameFromProfile = location.state?.from === 'publicProfile';
+  const profileUserId = location.state?.fromUserId;
+  console.log("Came from profile:", cameFromProfile, "Profile User ID:", profileUserId);
 
   // Стан модального вікна тесту
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -328,12 +333,23 @@ export default function LessonPage({ user, onLoginClick }) {
       <div className="max-w-6xl mx-auto px-6 py-8">
 
         {/* Кнопка повернення */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-x-2 text-gray-600 hover:text-gray-900 mb-8 font-medium"
-        >
-          ← Повернутися на головну
-        </button>
+        <div className="flex gap-4 mb-8">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-x-2 text-gray-600 hover:text-gray-900 font-medium"
+          >
+            ← На головну
+          </button>
+
+          {cameFromProfile && profileUserId && (
+            <button
+              onClick={() => navigate(`/u/${profileUserId}`)}
+              className="flex items-center gap-x-2 text-sky-600 hover:text-sky-700 font-medium"
+            >
+              ← Повернутися до профілю автора
+            </button>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
@@ -449,7 +465,9 @@ export default function LessonPage({ user, onLoginClick }) {
                   />
                   <div>
                     <p className="font-semibold text-gray-900">{lesson.author_name}</p>
-                    <p className="text-sm text-sky-600 cursor-pointer hover:underline">Переглянути профіль</p>
+                    <p className="text-sm text-sky-600 cursor-pointer hover:underline"
+                      onClick={() => navigate(`/u/${lesson.author_id}`, { state: { fromLessonId: lessonId } })}
+                    >Переглянути профіль</p>
                   </div>
                 </div>
               </div>
