@@ -27,6 +27,7 @@ export const addLesson = async (lessonData) => {
     likes_count: 0,
     completions_count: 0,
     is_approved: false,
+    // status: 'pending',
   });
   return lessonRef.id;
 };

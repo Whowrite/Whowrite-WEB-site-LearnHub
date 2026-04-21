@@ -1,9 +1,44 @@
 // src/components/layout/Navbar.jsx
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { auth } from '../../firebase/config';
+import { signOut } from 'firebase/auth';
+import { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { logoutUser } from '../../firebase/authService';
 
-export default function Navbar({ user, onLoginClick }) {
+export default function Navbar({ user: initialUser, onLoginClick }) {
   const navigate = useNavigate();
+  const [user, setUser] = useState(initialUser);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Завантажуємо повний профіль з Firestore, щоб отримати роль
+  useEffect(() => {
+  const loadUserProfile = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const firestoreData = userSnap.data();
+
+        // Зливаємо Auth + Firestore дані в один об'єкт користувача
+        setUser(prevUser => ({
+          ...prevUser,
+          ...firestoreData,
+        }));
+
+        setIsAdmin(firestoreData.role === 'admin');
+      }
+    } catch (err) {
+      console.error("Помилка завантаження профілю:", err);
+    }
+  };
+
+    loadUserProfile();
+  }, []);
 
   const handleCreateLesson = () => {
     if (user) {
@@ -28,7 +63,7 @@ export default function Navbar({ user, onLoginClick }) {
     <nav className="bg-white border-b sticky top-0 z-50 shadow-sm">
       <div className="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
         
-        {/* Logo */}
+        {/* Логотип */}
         <div 
           className="flex items-center gap-x-3"
           onClick={() => navigate('/')}
@@ -39,7 +74,7 @@ export default function Navbar({ user, onLoginClick }) {
           <span className="text-3xl font-bold tracking-tighter text-gray-900">LearnHub</span>
         </div>
 
-        {/* Search */}
+        {/* Пошуковий рядок */}
         <div className="flex-1 max-w-2xl mx-10">
           <div className="relative">
             <input
@@ -57,7 +92,7 @@ export default function Navbar({ user, onLoginClick }) {
             <i className="fa-solid fa-house text-2xl text-gray-700"></i>
           </button>
 
-          {/* Виправлена кнопка "Створити урок" */}
+          {/* Кнопка "Створити урок" */}
           <button 
             onClick={handleCreateLesson}
             className="flex items-center gap-x-3 bg-black hover:bg-gray-900 text-white font-semibold px-7 py-3 rounded-3xl transition-all active:scale-[0.97]"
@@ -65,6 +100,17 @@ export default function Navbar({ user, onLoginClick }) {
             <i className="fa-solid fa-video"></i>
             <span>Створити урок</span>
           </button>
+          
+          {/* Кнопка "Адмін-панель" */}
+          {isAdmin && (
+            <Link 
+              to="/admin" 
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-medium transition-all"
+            >
+              <i className="fa-solid fa-shield-halved"></i>
+              Адмін-панель
+            </Link>
+          )}
 
           {user ? (
             <div className="flex items-center gap-x-4">

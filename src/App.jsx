@@ -7,6 +7,7 @@ import CreateLesson from './pages/CreateLesson';
 import LessonPage from './pages/LessonPage';
 import Profile from './pages/Profile';
 import PublicProfile from './pages/PublicProfile';
+import AdminPanel from './pages/AdminPanel';
 import AuthModal from './components/auth/AuthModal';
 import { onAuthStateChange } from './firebase/authService';
 
@@ -70,8 +71,18 @@ function App() {
           <Profile 
             user={user} 
             onLoginClick={() => setShowAuthModal(true)} 
-          />
-        } 
+            />
+          } 
+        />
+
+        <Route 
+          path="/admin" 
+          element={
+            <AdminPanel 
+              user={user} 
+              onLoginClick={() => setShowAuthModal(true)} 
+              />
+            } 
         />
       </Routes>
 

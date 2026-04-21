@@ -21,9 +21,14 @@ export default function LessonPage({ user, onLoginClick }) {
   const [newCommentText, setNewCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  // Перевірка, чи користувач прийшов з профілю автора
   const cameFromProfile = location.state?.from === 'publicProfile';
   const profileUserId = location.state?.fromUserId;
   console.log("Came from profile:", cameFromProfile, "Profile User ID:", profileUserId);
+
+  // Перевірка, чи користувач прийшов з профілю автора
+  const cameFromAdminPanel = location.state?.from === 'adminPanel';
+  console.log("Came from admin panel:", cameFromAdminPanel);
 
   // Стан модального вікна тесту
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -183,7 +188,7 @@ export default function LessonPage({ user, onLoginClick }) {
     setShowResults(true);
 
     // Зберігаємо результат у Firebase
-    if (auth.currentUser && !isCompleted) {
+    if (auth.currentUser && !isCompleted && cameFromAdminPanel === false) {
       saveTestResult(auth.currentUser.uid, lessonId, {
         score: finalScore,
         max_score: 100,
@@ -254,7 +259,7 @@ export default function LessonPage({ user, onLoginClick }) {
       onLoginClick();
       return;
     }
-    if (isCompleted) return;
+    if (isCompleted || cameFromAdminPanel) return;
 
     try {
       await updateLessonProgress(auth.currentUser.uid, lessonId, {
@@ -287,6 +292,8 @@ export default function LessonPage({ user, onLoginClick }) {
       onLoginClick();
       return;
     }
+
+    if (cameFromAdminPanel) return; // Забороняємо натискати вподобайку з адмін панелі
 
     try {
       const liked = await toggleLike(auth.currentUser.uid, lessonId);
@@ -347,6 +354,15 @@ export default function LessonPage({ user, onLoginClick }) {
               className="flex items-center gap-x-2 text-sky-600 hover:text-sky-700 font-medium"
             >
               ← Повернутися до профілю автора
+            </button>
+          )}
+
+          {cameFromAdminPanel && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="flex items-center gap-x-2 text-sky-600 hover:text-sky-700 font-medium"
+            >
+              ← Повернутися до панелі адміністратора
             </button>
           )}
         </div>
@@ -528,7 +544,7 @@ export default function LessonPage({ user, onLoginClick }) {
                 </div>
 
                 {/* Форма додавання або повідомлення про блокування */}
-                {lesson.allow_comments !== false ? (
+                {lesson.allow_comments !== false && !cameFromAdminPanel ? (
                   /* Форма активна */
                   auth.currentUser ? (
                     <div>

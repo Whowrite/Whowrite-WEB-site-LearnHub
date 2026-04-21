@@ -31,7 +31,7 @@ export default function PublicProfile({ user, onLoginClick }) {
       setLoading(true);
 
       try {
-        // 1. Дані профілю
+        // Дані профілю
         const userRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userRef);
 
@@ -44,7 +44,7 @@ export default function PublicProfile({ user, onLoginClick }) {
         const userData = userSnap.data();
         setProfile(userData);
 
-        // 2. Всі уроки
+        // Всі уроки
         const allLessons = await getAllLessons();
 
         // Створені уроки автора
@@ -55,7 +55,7 @@ export default function PublicProfile({ user, onLoginClick }) {
         setPublishedLessons(published);
         setPublishedCount(published.length);
 
-        // 3. Кількість вивчених уроків (статистика)
+        // Кількість вивчених уроків (статистика)
         const progressQuery = query(
           collection(db, 'progress'),
           where('user_id', '==', userId),
@@ -64,7 +64,7 @@ export default function PublicProfile({ user, onLoginClick }) {
         const progressCountSnap = await getCountFromServer(progressQuery);
         setLearnedCount(progressCountSnap.data().count);
 
-        // 4. Кількість підтверджених знань (пройдені тести)
+        // Кількість підтверджених знань (пройдені тести)
         const testsQuery = query(
           collection(db, 'testResults'),
           where('user_id', '==', userId),
@@ -73,7 +73,7 @@ export default function PublicProfile({ user, onLoginClick }) {
         const testsCountSnap = await getCountFromServer(testsQuery);
         setPassedTestsCount(testsCountSnap.data().count);
 
-        // 5. Завантаження самих вивчених уроків для табу
+        // Завантаження самих вивчених уроків для табу
         const progressSnap = await getDocs(progressQuery);
         const learnedLessonIds = progressSnap.docs.map(doc => doc.data().lesson_id);
 
