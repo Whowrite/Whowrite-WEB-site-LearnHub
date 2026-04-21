@@ -24,8 +24,8 @@ export default function CreateLesson() {
   const [success, setSuccess] = useState(false);
 
   const availableCategories = [
-    "React", "JavaScript", "UI/UX", "Design", "Cooking", 
-    "Music", "Guitar", "Psychology", "Career", "IT", 
+    "React", "JavaScript", "UI/UX", "Дизайн", "Кулінарія", 
+    "Музика", "Гітара", "Філософія", "Кар'єра", "IT", 
     "Python", "English", "Математика", "Фізика", "Історія",
     "Література", "Філософія", "Мистецтво", "Фотографія", "Маркетинг",
     "Бізнес", "Фінанси", "Здоров'я", "Спорт", "Подорожі", "Українська мова",
@@ -176,7 +176,8 @@ export default function CreateLesson() {
         quiz_questions: formData.hasQuiz ? formData.quizQuestions : [],
 
         uploaded_at: new Date(),
-        is_approved: false,
+        // is_approved: false,
+        status: 'pending',
         views_count: 0,
         likes_count: 0,
         completions_count: 0,

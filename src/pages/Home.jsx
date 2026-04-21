@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
 import LessonCard from '../components/lesson/LessonCard';
-import { getAllLessons, incrementViews } from '../firebase/firestoreService';
+import { getAllLessons, getAllLessonsWithFilter, incrementViews } from '../firebase/firestoreService';
 
 export default function Home({ user, onLoginClick }) {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function Home({ user, onLoginClick }) {
     const fetchLessons = async () => {
       try {
         setLoading(true);
-        const data = await getAllLessons();
+        const data = await getAllLessonsWithFilter('approved'); // Завантажуємо лише затверджені уроки
         setLessons(data);
         setFilteredLessons(data);
       } catch (err) {

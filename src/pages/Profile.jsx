@@ -47,8 +47,8 @@ export default function Profile({ user, onLoginClick }) {
   });
 
   const availableCategories = [
-    "React", "JavaScript", "UI/UX", "Design", "Cooking",
-    "Music", "Guitar", "Psychology", "Career", "IT",
+    "React", "JavaScript", "UI/UX", "Дизайн", "Кулінарія",
+    "Музика", "Гітара", "Філософія", "Кар'єра", "IT",
     "Python", "English", "Математика", "Фізика", "Історія",
     "Література", "Філософія", "Мистецтво", "Фотографія", "Маркетинг",
     "Бізнес", "Фінанси", "Здоров'я", "Спорт", "Подорожі", "Українська мова",
@@ -430,6 +430,29 @@ export default function Profile({ user, onLoginClick }) {
               {userLessons.map(lesson => (
                 <div key={lesson.id} className="relative">
                   <LessonCard key={lesson.id} lesson={lesson} onClick={handleLessonClick} />
+
+                  {/* Позначка статусу */}
+                  <div className={`absolute top-4 left-4 text-xs px-3 py-1 rounded-3xl font-medium flex items-center gap-1 shadow-sm
+                        ${lesson.status === 'approved'
+                      ? 'bg-green-500 text-white'
+                      : lesson.status === 'pending'
+                        ? 'bg-yellow-500 text-white'
+                        : lesson.status === 'rejected'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-400 text-white'}`}   // fallback для невідомого статусу
+                  >
+                    {lesson.status === 'approved' && <i className="fa-solid fa-check"></i>}
+                    {lesson.status === 'pending' && <i className="fa-solid fa-clock"></i>}
+                    {lesson.status === 'rejected' && <i className="fa-solid fa-xmark"></i>}
+
+                    {lesson.status === 'approved'
+                      ? 'Затверджено'
+                      : lesson.status === 'pending'
+                        ? 'На перевірці'
+                        : lesson.status === 'rejected'
+                          ? 'Відхилено'
+                          : 'Невідомий статус'}
+                  </div>
 
                   {/* Кнопки редагування та видалення */}
                   <div className="absolute top-4 right-4 flex gap-2">

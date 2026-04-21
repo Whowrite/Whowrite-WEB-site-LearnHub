@@ -131,7 +131,7 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
             const lessonRef = doc(db, 'lessons', lessonId);
             await updateDoc(lessonRef, {
                 status: 'approved',
-                is_approved: true,        // для сумісності зі старим кодом
+                // is_approved: true,        // для сумісності зі старим кодом
                 approvedAt: new Date()
             });
 
@@ -156,7 +156,7 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
             const lessonRef = doc(db, 'lessons', lessonId);
             await updateDoc(lessonRef, {
                 status: 'rejected',
-                is_approved: false,
+                // is_approved: false,
                 rejectedAt: new Date()
             });
 

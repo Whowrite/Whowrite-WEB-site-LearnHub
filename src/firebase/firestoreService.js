@@ -26,8 +26,8 @@ export const addLesson = async (lessonData) => {
     views_count: 0,
     likes_count: 0,
     completions_count: 0,
-    is_approved: false,
-    // status: 'pending',
+    //is_approved: false,
+    status: 'pending',
   });
   return lessonRef.id;
 };
@@ -35,6 +35,16 @@ export const addLesson = async (lessonData) => {
 // Отримати всі уроки (для головної сторінки)
 export const getAllLessons = async () => {
   const q = query(collection(db, 'lessons'), orderBy('uploaded_at', 'desc'));
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+export const getAllLessonsWithFilter = async (status = 'approved') => {
+  const q = query(collection(db, 'lessons'), where('status', '==', status), orderBy('uploaded_at', 'desc'));
   const snapshot = await getDocs(q);
   
   return snapshot.docs.map(doc => ({
