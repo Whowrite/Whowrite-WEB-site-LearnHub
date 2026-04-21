@@ -48,7 +48,7 @@ export default function Profile({ user, onLoginClick }) {
 
   const availableCategories = [
     "React", "JavaScript", "UI/UX", "Дизайн", "Кулінарія",
-    "Музика", "Гітара", "Філософія", "Кар'єра", "IT",
+    "Музика", "Гітара", "Кар'єра", "IT",
     "Python", "English", "Математика", "Фізика", "Історія",
     "Література", "Філософія", "Мистецтво", "Фотографія", "Маркетинг",
     "Бізнес", "Фінанси", "Здоров'я", "Спорт", "Подорожі", "Українська мова",
@@ -325,6 +325,7 @@ export default function Profile({ user, onLoginClick }) {
         has_quiz: editLessonForm.hasQuiz,
         quiz_questions: editLessonForm.hasQuiz ? editLessonForm.quizQuestions : [],
         allow_comments: editLessonForm.allowComments === true,
+        status: 'pending', // при редагуванні знову відправляємо на перевірку
       });
 
       alert("Урок успішно оновлено!");
