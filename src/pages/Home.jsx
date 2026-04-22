@@ -6,6 +6,7 @@ import LessonCard from '../components/lesson/LessonCard';
 import { doc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getAllLessons, getAllLessonsWithFilter, incrementViews } from '../firebase/firestoreService';
+import MultiCategoryFilter from '../components/common/MultiCategoryFilter';
 
 export default function Home({ user, onLoginClick }) {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Home({ user, onLoginClick }) {
   const [lessons, setLessons] = useState([]);
   const [filteredLessons, setFilteredLessons] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -69,20 +71,34 @@ export default function Home({ user, onLoginClick }) {
     fetchLessons();
   }, []);
 
-  // Пошук
+  // Фільтрація уроків за пошуком та категорією
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredLessons(lessons);
-      return;
+    let filtered = [...lessons];
+
+    // Фільтрація за пошуком
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(lesson =>
+        (lesson.title || '').toLowerCase().includes(term) ||
+        (lesson.author_name || lesson.author || '').toLowerCase().includes(term) ||
+        (lesson.description || '').toLowerCase().includes(term)
+      );
     }
 
-    const term = searchTerm.toLowerCase().trim();
-    const filtered = lessons.filter(lesson =>
-      (lesson.title || '').toLowerCase().includes(term) ||
-      (lesson.author_name || lesson.author || '').toLowerCase().includes(term)
-    );
+    // Фільтрація за ВСІМА вибраними категоріями (AND)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(lesson => {
+        const lessonCategories = lesson.categories || [];
+        
+        // Перевіряємо, чи містить урок ВСІ вибрані категорії
+        return selectedCategories.every(selectedCategory => 
+          lessonCategories.includes(selectedCategory) || lesson.category === selectedCategory
+        );
+      });
+    }
+
     setFilteredLessons(filtered);
-  }, [searchTerm, lessons]);
+  }, [searchTerm, selectedCategories, lessons]);
 
   const openLesson = async (lessonId) => {
     try {
@@ -115,6 +131,50 @@ export default function Home({ user, onLoginClick }) {
           <p className="text-2xl text-gray-600 mt-4">
             5-хвилинні відео-уроки від спільноти
           </p>
+        </div>
+
+        {/* Рядок фільтрації */}
+        <div className="mb-8 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <MultiCategoryFilter 
+            selectedCategories={selectedCategories}
+            onCategoriesChange={setSelectedCategories}
+          />
+          
+          {/* Індикатор активних фільтрів */}
+          {(searchTerm || selectedCategories.length > 0) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-gray-600">Активні фільтри:</span>
+              
+              {searchTerm && (
+                <span className="bg-gray-200 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                  Пошук: {searchTerm}
+                  <button onClick={() => setSearchTerm('')} className="text-gray-500">×</button>
+                </span>
+              )}
+              
+              {selectedCategories.map(category => (
+                <span key={category} className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                  {category}
+                  <button 
+                    onClick={() => setSelectedCategories(selectedCategories.filter(c => c !== category))}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategories([]);
+                }}
+                className="text-red-500 hover:text-red-600 text-sm"
+              >
+                Очистити всі
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">

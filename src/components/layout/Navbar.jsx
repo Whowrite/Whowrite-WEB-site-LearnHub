@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { logoutUser } from '../../firebase/authService';
 
-export default function Navbar({ user: initialUser, onLoginClick }) {
+export default function Navbar({ user: initialUser, onLoginClick, searchTerm, onSearchChange }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(initialUser);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -75,16 +75,28 @@ export default function Navbar({ user: initialUser, onLoginClick }) {
         </div>
 
         {/* Пошуковий рядок */}
-        <div className="flex-1 max-w-2xl mx-10">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Шукати уроки..."
-              className="w-full bg-gray-100 border border-transparent focus:border-gray-300 focus:bg-white h-12 pl-14 rounded-3xl text-base outline-none transition-all"
-            />
-            <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-xl"></i>
+          <div className="flex-1 max-w-2xl mx-10">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Шукати уроки за назвою, автором або описом..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full bg-gray-100 border border-transparent focus:border-gray-300 focus:bg-white h-12 pl-14 pr-12 rounded-3xl text-base outline-none transition-all"
+              />
+              <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-xl"></i>
+              
+              {/* Кнопка очищення пошуку */}
+              {searchTerm && (
+                <button
+                  onClick={() => onSearchChange('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
         {/* Right side */}
         <div className="flex items-center gap-x-6">

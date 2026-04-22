@@ -5,6 +5,7 @@ import LessonCard from '../components/lesson/LessonCard';
 import { getAllLessons } from '../firebase/firestoreService';
 import { db } from '../firebase/config';
 import { doc, getDoc, collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore';
+import MultiCategoryFilter from '../components/common/MultiCategoryFilter';
 
 export default function PublicProfile({ user, onLoginClick }) {
   const { userId } = useParams();
@@ -14,13 +15,17 @@ export default function PublicProfile({ user, onLoginClick }) {
   const [profile, setProfile] = useState(null);
   const [publishedLessons, setPublishedLessons] = useState([]);
   const [learnedLessons, setLearnedLessons] = useState([]);
-
   const [publishedCount, setPublishedCount] = useState(0);
   const [learnedCount, setLearnedCount] = useState(0);
   const [passedTestsCount, setPassedTestsCount] = useState(0);
-
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('published');
+
+  // Стан для пошуку
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [filteredPublishedLessons, setFilteredPublishedLessons] = useState([]);
+  const [filteredLearnedLessons, setFilteredLearnedLessons] = useState([]);
 
   const fromLessonId = location.state?.fromLessonId;
 
@@ -93,6 +98,60 @@ export default function PublicProfile({ user, onLoginClick }) {
     loadPublicProfile();
   }, [userId]);
 
+  // Фільтрація опублікованих уроків
+  useEffect(() => {
+    let filtered = [...publishedLessons];
+
+    // Фільтрація за пошуком
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(lesson =>
+        (lesson.title || '').toLowerCase().includes(term) ||
+        (lesson.description || '').toLowerCase().includes(term) ||
+        (lesson.tags || []).some(tag => tag.toLowerCase().includes(term))
+      );
+    }
+
+    // Фільтрація за категоріями (AND логіка)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(lesson => {
+        const lessonCategories = lesson.categories || [];
+        return selectedCategories.every(selectedCategory => 
+          lessonCategories.includes(selectedCategory) || lesson.category === selectedCategory
+        );
+      });
+    }
+
+    setFilteredPublishedLessons(filtered);
+  }, [searchTerm, selectedCategories, publishedLessons]);
+
+  // Фільтрація вивчених уроків
+  useEffect(() => {
+    let filtered = [...learnedLessons];
+
+    // Фільтрація за пошуком
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(lesson =>
+        (lesson.title || '').toLowerCase().includes(term) ||
+        (lesson.description || '').toLowerCase().includes(term) ||
+        (lesson.author_name || '').toLowerCase().includes(term)
+      );
+    }
+
+    // Фільтрація за категоріями (AND логіка)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(lesson => {
+        const lessonCategories = lesson.categories || [];
+        return selectedCategories.every(selectedCategory => 
+          lessonCategories.includes(selectedCategory) || lesson.category === selectedCategory
+        );
+      });
+    }
+
+    setFilteredLearnedLessons(filtered);
+  }, [searchTerm, selectedCategories, learnedLessons]);
+
   const handleLessonClick = (lessonId) => {
     navigate(`/lesson/${lessonId}`, { 
       state: {
@@ -109,6 +168,11 @@ export default function PublicProfile({ user, onLoginClick }) {
     } else {
       navigate('/');
     }
+  };
+
+  // Виконуємо вибірку уроків для поточного табу
+  const getCurrentLessons = () => {
+    return activeTab === 'published' ? filteredPublishedLessons : filteredLearnedLessons;
   };
 
   if (loading) {
@@ -195,12 +259,84 @@ export default function PublicProfile({ user, onLoginClick }) {
           </button>
         </div>
 
+        {/* Рядок фільтрації з відступом зверху */}
+                <div className="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                    <MultiCategoryFilter 
+                      selectedCategories={selectedCategories}
+                      onCategoriesChange={setSelectedCategories}
+                    />
+                    
+                    {/* Поле пошуку */}
+                    <div className="relative w-80">
+                      <input
+                        type="text"
+                        placeholder={`Пошук серед ${activeTab === 'published' ? 'опублікованих' : 'вивчених'} уроків...`}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+        
+                  {/* Індикація логіки фільтрації */}
+                  {selectedCategories.length > 1 && (
+                    <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
+                      <i className="fa-solid fa-info-circle"></i>
+                      <span>Фільтрація за ВСІМА вибраними категоріями ({selectedCategories.length} категорії)</span>
+                    </div>
+                  )}
+        
+                  {/* Індикатор активних фільтрів */}
+                  {(searchTerm || selectedCategories.length > 0) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-gray-600">Активні фільтри:</span>
+                      
+                      {searchTerm && (
+                        <span className="bg-gray-200 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                          Пошук: {searchTerm}
+                          <button onClick={() => setSearchTerm('')} className="text-gray-500">×</button>
+                        </span>
+                      )}
+                      
+                      {selectedCategories.map(category => (
+                        <span key={category} className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                          {category}
+                          <button 
+                            onClick={() => setSelectedCategories(selectedCategories.filter(c => c !== category))}
+                            className="text-blue-500 hover:text-blue-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSelectedCategories([]);
+                        }}
+                        className="text-red-500 hover:text-red-600 text-sm"
+                      >
+                        Очистити всі
+                      </button>
+                    </div>
+                  )}
+
         {/* Контент */}
         <div className="mt-8">
           {activeTab === 'published' ? (
-            publishedLessons.length > 0 ? (
+            getCurrentLessons().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {publishedLessons.map(lesson => (
+                {getCurrentLessons().map(lesson => (
                   <LessonCard key={lesson.id} lesson={lesson} onClick={handleLessonClick} />
                 ))}
               </div>
@@ -210,9 +346,9 @@ export default function PublicProfile({ user, onLoginClick }) {
               </div>
             )
           ) : (
-            learnedLessons.length > 0 ? (
+            getCurrentLessons().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {learnedLessons.map(lesson => (
+                {getCurrentLessons().map(lesson => (
                   <div key={lesson.id} className="relative">
                     <LessonCard lesson={lesson} onClick={handleLessonClick} />
 

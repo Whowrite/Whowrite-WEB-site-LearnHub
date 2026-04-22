@@ -4,6 +4,7 @@ import Navbar from '../components/layout/Navbar';
 import { auth } from '../firebase/config';
 import { doc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import MultiCategoryFilter from '../components/common/MultiCategoryFilter';
 
 export default function AdminPanel({ user: initialUser, onLoginClick }) {
     const navigate = useNavigate();
@@ -28,6 +29,12 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
     const [showUsers, setShowUsers] = useState(false);
     const [users, setUsers] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
+
+    // Стан для пошуку
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [filteredLessons, setFilteredLessons] = useState([]);
+    const [filteredUsers, setFilteredUsers] = useState([]);
 
     // Перевірка на бан користувача
     useEffect(() => {
@@ -132,6 +139,51 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
 
         loadAdminStats();
     }, [isAdmin]);
+
+    // Фільтрація уроків за пошуком та категорією
+    useEffect(() => {
+        let filtered = [...pendingLessons];
+
+        // Фільтрація за пошуком
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase().trim();
+            filtered = filtered.filter(lesson =>
+                (lesson.title || '').toLowerCase().includes(term) ||
+                (lesson.author_name || lesson.author || '').toLowerCase().includes(term) ||
+                (lesson.description || '').toLowerCase().includes(term)
+            );
+        }
+
+        // Фільтрація за ВСІМА вибраними категоріями (AND)
+        if (selectedCategories.length > 0) {
+            filtered = filtered.filter(lesson => {
+                const lessonCategories = lesson.categories || [];
+
+                // Перевіряємо, чи містить урок ВСІ вибрані категорії
+                return selectedCategories.every(selectedCategory =>
+                    lessonCategories.includes(selectedCategory) || lesson.category === selectedCategory
+                );
+            });
+        }
+
+        setFilteredLessons(filtered);
+    }, [searchTerm, selectedCategories, pendingLessons]);
+
+    // Фільтрація користувачів за пошуком
+    useEffect(() => {
+        let filtered = [...users];
+
+        // Фільтрація за пошуком
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase().trim();
+            filtered = filtered.filter(user =>
+                (user.full_name || '').toLowerCase().includes(term) ||
+                (user.email || '').toLowerCase().includes(term)
+            );
+        }
+
+        setFilteredUsers(filtered);
+    }, [searchTerm, users]);
 
     // Завантаження уроків на модерацію
     const loadPendingLessons = async () => {
@@ -364,139 +416,210 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
                                 </div>
                             </>
                         )}
-
-                        {/* Секція модерації уроків */}
-                        {showModeration && (
-                            <div>
-                                <div className="flex items-center justify-between mb-8">
-                                    <div>
-                                        <h2 className="text-3xl font-semibold">Уроки на модерацію ({pendingLessons.length})</h2>
-                                        <p className="text-gray-500 mt-1">Перевірка та затвердження контенту</p>
+                            {/* Секція модерації уроків */}
+                            {showModeration && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div>
+                                            <h2 className="text-3xl font-semibold">Уроки на модерацію ({pendingLessons.length})</h2>
+                                            <p className="text-gray-500 mt-1">Перевірка та затвердження контенту</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowModeration(false)}
+                                            className="px-6 py-2.5 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all"
+                                        >
+                                            ← Повернутися до панелі
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setShowModeration(false)}
-                                        className="px-6 py-2.5 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all"
-                                    >
-                                        ← Повернутися до панелі
-                                    </button>
-                                </div>
 
-                                {pendingLessons.length === 0 ? (
-                                    <div className="bg-white rounded-3xl p-16 text-center">
-                                        <i className="fa-solid fa-check-circle text-6xl text-green-500 mb-4"></i>
-                                        <p className="text-2xl font-medium text-gray-800">Всі уроки перевірено!</p>
-                                        <p className="text-gray-500 mt-2">Наразі немає матеріалів, що очікують модерації.</p>
+                                    {/* Рядок фільтрації */}
+                                    <div className="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                        <MultiCategoryFilter
+                                            selectedCategories={selectedCategories}
+                                            onCategoriesChange={setSelectedCategories}
+                                        />
+
+                                        {/* Поле пошуку */}
+                                        <div className="relative w-80">
+                                            <input
+                                                type="text"
+                                                placeholder={`Пошук серед уроків...`}
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={() => setSearchTerm('')}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <i className="fa-solid fa-xmark"></i>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="space-y-8">
-                                        {pendingLessons.map((lesson) => {
-                                            // Правильна обробка serverTimestamp()
-                                            let createdDate = 'Дата не вказана';
-                                            if (lesson.uploaded_at) {
-                                                const dateObj = lesson.uploaded_at.toDate ? lesson.uploaded_at.toDate() : new Date(lesson.uploaded_at);
-                                                createdDate = dateObj.toLocaleDateString('uk-UA', {
-                                                    day: 'numeric',
-                                                    month: 'long',
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                });
-                                            }
 
-                                            return (
-                                                <div key={lesson.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
-                                                    <div className="p-6 flex flex-col lg:flex-row gap-6">
+                                    {/* Індикація логіки фільтрації */}
+                                    {selectedCategories.length > 1 && (
+                                        <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
+                                            <i className="fa-solid fa-info-circle"></i>
+                                            <span>Фільтрація за ВСІМА вибраними категоріями ({selectedCategories.length} категорії)</span>
+                                        </div>
+                                    )}
 
-                                                        {/* Thumbnail */}
-                                                        {lesson.thumbnail_url ? (
-                                                            <img
-                                                                src={lesson.thumbnail_url}
-                                                                alt={lesson.title}
-                                                                className="w-full lg:w-64 h-40 object-cover rounded-2xl flex-shrink-0"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full lg:w-64 h-40 bg-gray-200 rounded-2xl flex items-center justify-center flex-shrink-0">
-                                                                <i className="fa-solid fa-video text-5xl text-gray-400"></i>
-                                                            </div>
-                                                        )}
+                                    {/* Індикатор активних фільтрів */}
+                                    {(searchTerm || selectedCategories.length > 0) && (
+                                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                                            <span className="text-sm text-gray-600">Активні фільтри:</span>
 
-                                                        <div className="flex-1 min-w-0">
-                                                            <h3 className="text-2xl font-semibold text-gray-900 leading-tight mb-1">
-                                                                {lesson.title}
-                                                            </h3>
+                                            {searchTerm && (
+                                                <span className="bg-gray-200 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                                                    Пошук: {searchTerm}
+                                                    <button onClick={() => setSearchTerm('')} className="text-gray-500">×</button>
+                                                </span>
+                                            )}
 
-                                                            {/* Автор + Дата */}
-                                                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                                                                <div className="flex items-center gap-2">
-                                                                    {lesson.author_avatar && (
-                                                                        <img
-                                                                            src={lesson.author_avatar}
-                                                                            alt={lesson.author_name}
-                                                                            className="w-6 h-6 rounded-full object-cover"
-                                                                        />
-                                                                    )}
-                                                                    <span className="font-medium">{lesson.author_name || 'Невідомий автор'}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <i className="fa-solid fa-calendar-days"></i>
-                                                                    <span>{createdDate}</span>
-                                                                </div>
-                                                            </div>
+                                            {selectedCategories.map(category => (
+                                                <span key={category} className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                                                    {category}
+                                                    <button
+                                                        onClick={() => setSelectedCategories(selectedCategories.filter(c => c !== category))}
+                                                        className="text-blue-500 hover:text-blue-700"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            ))}
 
-                                                            {/* Категорії */}
-                                                            {lesson.categories && lesson.categories.length > 0 && (
-                                                                <div className="flex flex-wrap gap-2 mb-6">
-                                                                    {lesson.categories.map((category, index) => (
-                                                                        <span
-                                                                            key={index}
-                                                                            className="px-4 py-1.5 bg-sky-100 text-sky-700 text-sm font-medium rounded-2xl"
-                                                                        >
-                                                                            {category}
-                                                                        </span>
-                                                                    ))}
+                                            <button
+                                                onClick={() => {
+                                                    setSearchTerm('');
+                                                    setSelectedCategories([]);
+                                                }}
+                                                className="text-red-500 hover:text-red-600 text-sm"
+                                            >
+                                                Очистити всі
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {filteredLessons.length === 0 ? (
+                                        <div className="bg-white rounded-3xl p-16 text-center">
+                                            <i className="fa-solid fa-check-circle text-6xl text-green-500 mb-4"></i>
+                                            <p className="text-2xl font-medium text-gray-800">Всі уроки перевірено!</p>
+                                            <p className="text-gray-500 mt-2">Наразі немає матеріалів, що очікують модерації.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-8">
+                                            {filteredLessons.map((lesson) => {
+                                                // Правильна обробка serverTimestamp()
+                                                let createdDate = 'Дата не вказана';
+                                                if (lesson.uploaded_at) {
+                                                    const dateObj = lesson.uploaded_at.toDate ? lesson.uploaded_at.toDate() : new Date(lesson.uploaded_at);
+                                                    createdDate = dateObj.toLocaleDateString('uk-UA', {
+                                                        day: 'numeric',
+                                                        month: 'long',
+                                                        year: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    });
+                                                }
+
+                                                return (
+                                                    <div key={lesson.id} className="mt-6 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                                                        <div className="p-6 flex flex-col lg:flex-row gap-6">
+
+                                                            {/* Thumbnail */}
+                                                            {lesson.thumbnail_url ? (
+                                                                <img
+                                                                    src={lesson.thumbnail_url}
+                                                                    alt={lesson.title}
+                                                                    className="w-full lg:w-64 h-40 object-cover rounded-2xl flex-shrink-0"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full lg:w-64 h-40 bg-gray-200 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                                                    <i className="fa-solid fa-video text-5xl text-gray-400"></i>
                                                                 </div>
                                                             )}
 
-                                                            {/* Опис */}
-                                                            {lesson.description && (
-                                                                <p className="text-gray-700 leading-relaxed line-clamp-3 mb-5">
-                                                                    {lesson.description}
-                                                                </p>
-                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="text-2xl font-semibold text-gray-900 leading-tight mb-1">
+                                                                    {lesson.title}
+                                                                </h3>
 
-                                                        </div>
+                                                                {/* Автор + Дата */}
+                                                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {lesson.author_avatar && (
+                                                                            <img
+                                                                                src={lesson.author_avatar}
+                                                                                alt={lesson.author_name}
+                                                                                className="w-6 h-6 rounded-full object-cover"
+                                                                            />
+                                                                        )}
+                                                                        <span className="font-medium">{lesson.author_name || 'Невідомий автор'}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <i className="fa-solid fa-calendar-days"></i>
+                                                                        <span>{createdDate}</span>
+                                                                    </div>
+                                                                </div>
 
-                                                        {/* Кнопки дій */}
-                                                        <div className="flex flex-col gap-3 lg:min-w-[220px] justify-center pt-2">
-                                                            <button
-                                                                onClick={() => navigate('/lesson/' + lesson.id, { state: { from: 'adminPanel' } })}
-                                                                className="px-6 py-3 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 font-medium rounded-2xl transition-all flex items-center justify-center gap-2"
-                                                            >
-                                                                Переглянути детально
-                                                            </button>
+                                                                {/* Категорії */}
+                                                                {lesson.categories && lesson.categories.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-2 mb-6">
+                                                                        {lesson.categories.map((category, index) => (
+                                                                            <span
+                                                                                key={index}
+                                                                                className="px-4 py-1.5 bg-sky-100 text-sky-700 text-sm font-medium rounded-2xl"
+                                                                            >
+                                                                                {category}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
 
-                                                            <button
-                                                                onClick={() => handleApprove(lesson.id)}
-                                                                className="px-8 py-3.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-2xl transition-all active:scale-[0.98]"
-                                                            >
-                                                                Затвердити
-                                                            </button>
+                                                                {/* Опис */}
+                                                                {lesson.description && (
+                                                                    <p className="text-gray-700 leading-relaxed line-clamp-3 mb-5">
+                                                                        {lesson.description}
+                                                                    </p>
+                                                                )}
 
-                                                            <button
-                                                                onClick={() => handleReject(lesson.id)}
-                                                                className="px-8 py-3.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-2xl transition-all active:scale-[0.98]"
-                                                            >
-                                                                Відхилити
-                                                            </button>
+                                                            </div>
+
+                                                            {/* Кнопки дій */}
+                                                            <div className="flex flex-col gap-3 lg:min-w-[220px] justify-center pt-2">
+                                                                <button
+                                                                    onClick={() => navigate('/lesson/' + lesson.id, { state: { from: 'adminPanel' } })}
+                                                                    className="px-6 py-3 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 font-medium rounded-2xl transition-all flex items-center justify-center gap-2"
+                                                                >
+                                                                    Переглянути детально
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => handleApprove(lesson.id)}
+                                                                    className="px-8 py-3.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-2xl transition-all active:scale-[0.98]"
+                                                                >
+                                                                    Затвердити
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => handleReject(lesson.id)}
+                                                                    className="px-8 py-3.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-2xl transition-all active:scale-[0.98]"
+                                                                >
+                                                                    Відхилити
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                         {/* Секція управління користувачами */}
                         {showUsers && (
@@ -514,7 +637,30 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
                                     </button>
                                 </div>
 
-                                <div className="bg-white rounded-3xl overflow-hidden border border-gray-100">
+                                {/* Рядок фільтрації */}
+                                <div className="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                    {/* Поле пошуку */}
+                                    <div className="relative w-80">
+                                        <input
+                                            type="text"
+                                            placeholder={`Пошук серед користувачів...`}
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                        {searchTerm && (
+                                            <button
+                                                onClick={() => setSearchTerm('')}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <i className="fa-solid fa-xmark"></i>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 bg-white rounded-3xl overflow-hidden border border-gray-100">
                                     <table className="w-full">
                                         <thead className="bg-gray-50">
                                             <tr>
@@ -526,7 +672,7 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200">
-                                            {users.map((user) => {
+                                            {filteredUsers.map((user) => {
                                                 const isBlocked = !!user.isBlocked;
                                                 return (
                                                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
@@ -558,8 +704,8 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
                                                         <td className="px-6 py-5">
                                                             <span
                                                                 className={`inline-flex px-4 py-1 rounded-3xl text-xs font-medium ${isBlocked
-                                                                        ? 'bg-red-100 text-red-700'
-                                                                        : 'bg-emerald-100 text-emerald-700'
+                                                                    ? 'bg-red-100 text-red-700'
+                                                                    : 'bg-emerald-100 text-emerald-700'
                                                                     }`}
                                                             >
                                                                 {isBlocked ? '🚫 Заблоковано' : '✅ Активний'}
@@ -569,8 +715,8 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
                                                             <button
                                                                 onClick={() => toggleBlockUser(user.id, isBlocked)}
                                                                 className={`px-6 py-2.5 rounded-2xl text-sm font-medium transition-all ${isBlocked
-                                                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                                                        : 'bg-red-600 hover:bg-red-700 text-white'
+                                                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                                    : 'bg-red-600 hover:bg-red-700 text-white'
                                                                     }`}
                                                             >
                                                                 {isBlocked ? 'Розблокувати' : 'Заблокувати'}
