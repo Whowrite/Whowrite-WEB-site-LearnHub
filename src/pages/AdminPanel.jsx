@@ -29,6 +29,38 @@ export default function AdminPanel({ user: initialUser, onLoginClick }) {
     const [users, setUsers] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
 
+    // Перевірка на бан користувача
+    useEffect(() => {
+        const checkUserBlockStatus = async () => {
+            if (!auth.currentUser) {
+                navigate('/');
+                return;
+            }
+
+            try {
+                const userRef = doc(db, 'users', auth.currentUser.uid);
+                const userSnap = await getDoc(userRef);
+
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+
+                    if (userData.isBlocked === true) {
+                        alert("Ваш акаунт заблоковано. Зверніться до адміністратора.");
+                        await auth.signOut();
+                        return;
+                    }
+                } else {
+                    console.error("Користувача не знайдено в БД");
+                }
+            } catch (err) {
+                console.error("Помилка перевірки блокування:", err);
+                alert("Сталася помилка. Спробуйте пізніше.");
+            }
+        };
+
+        checkUserBlockStatus();
+    }, [navigate]);
+
     // Завантажуємо повний профіль + роль з Firestore
     useEffect(() => {
         const loadUserRole = async () => {

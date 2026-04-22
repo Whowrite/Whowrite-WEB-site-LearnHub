@@ -78,6 +78,8 @@ export const createUserProfile = async (userId, userData) => {
     created_at: serverTimestamp(),
     lessons_count: 0,
     learned_count: 0,
+    isBlocked: false,
+    role: 'user'
   });
 };
 

@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
+import { auth } from '../firebase/config';
 import LessonCard from '../components/lesson/LessonCard';
+import { doc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../firebase/config';
 import { getAllLessons, getAllLessonsWithFilter, incrementViews } from '../firebase/firestoreService';
 
 export default function Home({ user, onLoginClick }) {
@@ -12,6 +15,41 @@ export default function Home({ user, onLoginClick }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Перевірка на бан користувача
+  useEffect(() => {
+    const checkUserBlockStatus = async () => {
+      if (!auth.currentUser) {
+        navigate('/');
+        return;
+      }
+
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          if (userData.isBlocked === true) {
+            alert("Ваш акаунт заблоковано. Зверніться до адміністратора.");
+            await auth.signOut();
+            return;
+          }
+        } else {
+          console.error("Користувача не знайдено в БД");
+        }
+      } catch (err) {
+        console.error("Помилка перевірки блокування:", err);
+        alert("Сталася помилка. Спробуйте пізніше.");
+      }
+      finally {
+        navigate(0); // Перезавантажуємо сторінку для оновлення стану
+      }
+    };
+
+    checkUserBlockStatus();
+  }, [navigate]);
 
   useEffect(() => {
     const fetchLessons = async () => {

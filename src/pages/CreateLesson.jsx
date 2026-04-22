@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { addLesson } from '../firebase/firestoreService';
 import { auth } from '../firebase/config';
+import { db } from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function CreateLesson() {
   const navigate = useNavigate();
@@ -84,12 +86,37 @@ export default function CreateLesson() {
     }));
   };
 
-  // Перевірка авторизації
+  // Перевірка на бан користувача
   useEffect(() => {
-    if (!auth.currentUser) {
-      alert("Для створення уроку потрібно увійти в акаунт");
-      navigate('/');
-    }
+    const checkUserBlockStatus = async () => {
+      if (!auth.currentUser) {
+        navigate('/');
+        return;
+      }
+
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          if (userData.isBlocked === true) {
+            alert("Ваш акаунт заблоковано. Зверніться до адміністратора.");
+            await auth.signOut();
+            navigate('/');
+            return;
+          }
+        } else {
+          console.error("Користувача не знайдено в БД");
+        }
+      } catch (err) {
+        console.error("Помилка перевірки блокування:", err);
+        alert("Сталася помилка. Спробуйте пізніше.");
+      }
+    };
+
+    checkUserBlockStatus();
   }, [navigate]);
 
   const handleChange = (e) => {

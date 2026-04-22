@@ -55,6 +55,38 @@ export default function Profile({ user, onLoginClick }) {
     "Психологія", "Саморозвиток", "Медицина", "Геймінг"
   ];
 
+  // Перевірка на бан користувача
+  useEffect(() => {
+    const checkUserBlockStatus = async () => {
+      if (!auth.currentUser) {
+        navigate('/');
+        return;
+      }
+
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          if (userData.isBlocked === true) {
+            alert("Ваш акаунт заблоковано. Зверніться до адміністратора.");
+            await auth.signOut();
+            return;
+          }
+        } else {
+          console.error("Користувача не знайдено в БД");
+        }
+      } catch (err) {
+        console.error("Помилка перевірки блокування:", err);
+        alert("Сталася помилка. Спробуйте пізніше.");
+      }
+    };
+
+    checkUserBlockStatus();
+  }, [navigate]);
+
   // Завантаження профілю та уроків користувача при відкритті сторінки
   useEffect(() => {
     if (!auth.currentUser) {

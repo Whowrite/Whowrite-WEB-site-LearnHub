@@ -1,8 +1,10 @@
 // src/components/auth/AuthModal.jsx
 import { useState } from 'react';
 import { registerUser, loginUser } from '../../firebase/authService';
+import { useNavigate } from 'react-router-dom';
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +27,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       
       onSuccess();
       onClose();
+      navigate(0); // Перезавантажуємо сторінку для оновлення стану
     } catch (err) {
       setError(err.message || 'Щось пішло не так. Спробуйте ще раз.');
     } finally {
