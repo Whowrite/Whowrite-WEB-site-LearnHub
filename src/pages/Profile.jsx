@@ -20,6 +20,7 @@ export default function Profile({ user, onLoginClick }) {
   const [passedTestsCount, setPassedTestsCount] = useState(0);
   const [allAvailableTags, setAllAvailableTags] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('published');
 
   // Стан для пошуку
@@ -46,12 +47,16 @@ export default function Profile({ user, onLoginClick }) {
   const [editLessonForm, setEditLessonForm] = useState({
     title: '',
     description: '',
-    youtubeUrl: '',
+    thumbnailUrl: '',
     duration_minutes: 5,
     categories: [],
     hasQuiz: false,
     quizQuestions: [],
   });
+  const [thumbnailPreview, setThumbnailPreview] = useState(null);
+  const [thumbnailError, setThumbnailError] = useState('');
+  const [thumbnailValidating, setThumbnailValidating] = useState(false);
+  const [updatingLesson, setUpdatingLesson] = useState(false);
 
   const availableCategories = [
     "React", "JavaScript", "UI/UX", "Дизайн", "Кулінарія",
@@ -280,6 +285,15 @@ export default function Profile({ user, onLoginClick }) {
     });
   };
 
+  // Оновлення попереднього перегляду мініатюри
+  useEffect(() => {
+    if (editLessonForm.thumbnailUrl) {
+      setThumbnailPreview(editLessonForm.thumbnailUrl);
+    } else {
+      setThumbnailPreview(null);
+    }
+  }, [editLessonForm.thumbnailUrl]);
+
   // Оновлення тільки аватара + оновлення у всіх уроках
   const saveAvatar = async () => {
     if (!newAvatarUrl) return;
@@ -341,17 +355,23 @@ export default function Profile({ user, onLoginClick }) {
 
   // Відкриття редагування уроку
   const openEditLessonModal = (lesson) => {
+    // Визначаємо джерело відео для логіки відображення
+    const videoSource = lesson.video_source || 'youtube';
+
     setSelectedLesson(lesson);
     setEditLessonForm({
       title: lesson.title,
       description: lesson.description || '',
-      youtubeUrl: lesson.youtube_url || '',
+      thumbnailUrl: lesson.thumbnail_url || '',
       duration_minutes: lesson.duration_minutes || 5,
       categories: lesson.categories || [],
       hasQuiz: lesson.has_quiz || false,
       quizQuestions: lesson.quiz_questions || [],
       allowComments: lesson.allow_comments === true,
+      videoSource: videoSource,
     });
+    setThumbnailPreview(lesson.thumbnail_url || null);
+    setThumbnailError('');
     setIsEditLessonModalOpen(true);
   };
 
@@ -405,21 +425,40 @@ export default function Profile({ user, onLoginClick }) {
   // Збереження відредагованого уроку
   const saveEditedLesson = async () => {
     if (!selectedLesson) return;
+    
+    // Валідація мініатюри
+    if (!editLessonForm.thumbnailUrl) {
+      setThumbnailError("Будь ласка, вкажіть посилання на мініатюру");
+      return;
+    }
+    const isValid = await validateImageUrl(editLessonForm.thumbnailUrl);
+    if (!isValid) {
+      return;
+    }
+    setUpdatingLesson(true);
+    setError('');
 
     try {
       const lessonRef = doc(db, 'lessons', selectedLesson.id);
-      await updateDoc(lessonRef, {
+      const updateData = {
         title: editLessonForm.title.trim(),
         description: editLessonForm.description.trim(),
-        youtube_url: editLessonForm.youtubeUrl.trim(),
-        thumbnail_url: editLessonForm.youtubeUrl ? `https://img.youtube.com/vi/${extractYouTubeId(editLessonForm.youtubeUrl)}/maxresdefault.jpg` : '',
+        thumbnail_url: editLessonForm.thumbnailUrl,
         duration_minutes: parseFloat(editLessonForm.duration_minutes),
         categories: editLessonForm.categories,
         has_quiz: editLessonForm.hasQuiz,
         quiz_questions: editLessonForm.hasQuiz ? editLessonForm.quizQuestions : [],
         allow_comments: editLessonForm.allowComments === true,
         status: 'pending', // при редагуванні знову відправляємо на перевірку
-      });
+        updated_at: new Date(), // Додаємо дату оновлення
+      };
+
+      // Якщо змінюється thumbnail, оновлюємо і thumbnail_source
+      if (editLessonForm.thumbnailUrl !== selectedLesson.thumbnail_url) {
+        updateData.thumbnail_source = 'custom';
+      }
+
+      await updateDoc(lessonRef, updateData);
 
       alert("Урок успішно оновлено!");
       setIsEditLessonModalOpen(false);
@@ -444,18 +483,17 @@ export default function Profile({ user, onLoginClick }) {
     }
   };
 
-  const extractYouTubeId = (url) => {
-    const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
   // Виконуємо вибірку уроків для поточного табу
   const getCurrentLessons = () => {
     return activeTab === 'published' ? filteredPublishedLessons : filteredLearnedLessons;
   };
 
   const handleLessonClick = (lessonId) => navigate(`/lesson/${lessonId}`);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Завантаження...</div>;
 
@@ -689,15 +727,50 @@ export default function Profile({ user, onLoginClick }) {
                 />
               </div>
 
+              {/* Мініатюра */}
               <div>
-                <label className="block text-sm font-medium mb-2">Посилання на YouTube</label>
+                <label className="block text-sm font-medium mb-2">
+                  Посилання на фото для мініатюри *
+                </label>
                 <input
-                  type="text"
-                  value={editLessonForm.youtubeUrl}
-                  onChange={(e) => setEditLessonForm({ ...editLessonForm, youtubeUrl: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-sky-500"
+                  type="url"
+                  value={editLessonForm.thumbnailUrl}
+                  onChange={(e) => setEditLessonForm({ ...editLessonForm, thumbnailUrl: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-sky-500"
+                  placeholder="https://example.com/image.jpg"
                 />
+                <p className="text-sm text-gray-500 mt-2">
+                  💡 Вставте пряме посилання на зображення для мініатюри (jpg, png, gif, webp)
+                </p>
+                {thumbnailError && (
+                  <p className="text-sm text-red-500 mt-1">{thumbnailError}</p>
+                )}
               </div>
+
+              {/* Попередній перегляд мініатюри */}
+              {thumbnailValidating && (
+                <div className="flex items-center justify-center p-8 bg-gray-100 rounded-xl">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
+                  <span className="ml-2 text-gray-500">Перевірка зображення...</span>
+                </div>
+              )}
+
+              {thumbnailPreview && !thumbnailValidating && (
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">Попередній перегляд:</p>
+                  <div className="relative group">
+                    <img
+                      src={thumbnailPreview}
+                      alt="Прев'ю уроку"
+                      className="w-full max-h-64 object-cover rounded-xl border border-gray-200"
+                      onError={(e) => {
+                        e.target.src = '/images/placeholder-image.jpg';
+                        setThumbnailError('Не вдалося завантажити зображення');
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium mb-2">Тривалість (хвилин)</label>

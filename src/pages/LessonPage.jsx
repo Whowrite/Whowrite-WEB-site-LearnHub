@@ -146,10 +146,111 @@ export default function LessonPage({ user, onLoginClick }) {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const videoId = getYouTubeVideoId(lesson?.youtube_url);
-  const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`
-    : null;
+  // Функція для отримання Google Drive ID
+  const getGoogleDriveId = (url) => {
+    if (!url) return null;
+    
+    // Якщо url це об'єкт (збережений в новому форматі)
+    if (typeof url === 'object' && url.fileId) {
+      return url.fileId;
+    }
+    
+    // Якщо url це рядок
+    if (typeof url === 'string') {
+      const patterns = [
+        /\/file\/d\/([a-zA-Z0-9_-]+)/,
+        /id=([a-zA-Z0-9_-]+)/,
+        /\/d\/([a-zA-Z0-9_-]+)/,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Функція для отримання embed URL залежно від джерела
+  const getVideoEmbedUrl = () => {
+    if (!lesson) return null;
+
+    // Якщо є готовий embed_url (для Google Drive)
+    if (lesson.embed_url) {
+      // Додаємо параметри для автозапуску Google Drive відео
+      return lesson.embed_url.includes('?') 
+        ? `${lesson.embed_url}&autoplay=1` 
+        : `${lesson.embed_url}?autoplay=1`;
+    }
+
+    // Визначаємо джерело відео
+    const videoSource = lesson.video_source || 'youtube';
+    
+    if (videoSource === 'youtube') {
+      // Для YouTube
+      const videoUrl = typeof lesson.video_url === 'string' 
+        ? lesson.video_url 
+        : lesson.youtube_url; // fallback для старих даних
+      
+      const videoId = getYouTubeVideoId(videoUrl);
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+      }
+    } 
+    else if (videoSource === 'googledrive') {
+      // Для Google Drive
+      let fileId = null;
+      
+      // Отримуємо fileId з різних форматів збереження
+      if (typeof lesson.video_url === 'object' && lesson.video_url.fileId) {
+        fileId = lesson.video_url.fileId;
+      } 
+      else if (typeof lesson.video_url === 'string') {
+        fileId = getGoogleDriveId(lesson.video_url);
+      }
+      
+      if (fileId) {
+        return `https://drive.google.com/file/d/${fileId}/preview?autoplay=1`;
+      }
+    }
+    
+    return null;
+  };
+
+  // Функція для отримання мініатюри відео
+  const getVideoThumbnail = () => {
+    if (!lesson) return null;
+    
+    // Якщо є мініатюра в даних
+    if (lesson.thumbnail_url) {
+      return lesson.thumbnail_url;
+    }
+    
+    // Для YouTube - генеруємо з ID
+    if (lesson.video_source === 'youtube') {
+      const videoUrl = typeof lesson.video_url === 'string' 
+        ? lesson.video_url 
+        : lesson.youtube_url;
+      const videoId = getYouTubeVideoId(videoUrl);
+      if (videoId) {
+        return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+      }
+    }
+    
+    // Заглушка для Google Drive
+    if (lesson.video_source === 'googledrive') {
+      return '/images/drive-video-placeholder.jpg'; // Шлях до вашої заглушки
+    }
+    
+    return null;
+  };
+
+  const embedUrl = getVideoEmbedUrl();
+  const thumbnailUrl = getVideoThumbnail();
+  const videoSource = lesson?.video_source || 'youtube';
 
   // Форматування дати
   const formatDate = (timestamp) => {
@@ -418,8 +519,17 @@ export default function LessonPage({ user, onLoginClick }) {
                   className="w-full h-full"
                 ></iframe>
               ) : (
-                <div className="flex items-center justify-center h-full text-white">
-                  Не вдалося завантажити відео
+                <div className="flex flex-col items-center justify-center h-full text-white p-8 text-center">
+                  <svg className="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-lg font-medium mb-2">Не вдалося завантажити відео</p>
+                  <p className="text-sm text-gray-400">
+                    Можливо, відео видалено або доступ до нього обмежено
+                  </p>
+                  <p className="text-xs text-gray-500 mt-4">
+                    Джерело: {videoSource === 'youtube' ? 'YouTube' : 'Google Drive'}
+                  </p>
                 </div>
               )}
             </div>
