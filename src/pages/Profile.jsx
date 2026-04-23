@@ -332,24 +332,71 @@ export default function Profile({ user, onLoginClick }) {
 
   // Повне оновлення профілю
   const saveProfile = async () => {
-    try {
-      await updateProfile(auth.currentUser, {
-        displayName: editProfileForm.displayName,
-        photoURL: editProfileForm.photoURL,
-      });
+    // Валідація імені
+    if (!editProfileForm.displayName || editProfileForm.displayName.trim().length < 2) {
+      alert("Ім'я повинно містити хоча б 2 символи");
+      return;
+    }
 
+    // Валідація URL фото (якщо вказано)
+    if (editProfileForm.photoURL) {
+      const isValidImage = await validateImageUrl(editProfileForm.photoURL);
+      if (!isValidImage) {
+        alert("Посилання на фото не веде на коректне зображення");
+        return;
+      }
+    }
+
+    try {
+      // Оновлюємо в Firebase Auth
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: editProfileForm.displayName.trim(),
+          photoURL: editProfileForm.photoURL || null,
+        });
+      }
+
+      // Оновлюємо в Firestore (колекція users)
       const userRef = doc(db, 'users', auth.currentUser.uid);
       await updateDoc(userRef, {
-        full_name: editProfileForm.displayName,
-        bio: editProfileForm.bio,
-        avatar_url: editProfileForm.photoURL,
+        displayName: editProfileForm.displayName.trim(),
+        bio: editProfileForm.bio || '',
+        photoURL: editProfileForm.photoURL || null,
+        updatedAt: new Date(),
       });
 
-      alert("Профіль успішно оновлено!");
+      // Оновлюємо всі уроки автора з новими даними
+      const lessonsRef = collection(db, 'lessons');
+      const q = query(lessonsRef, where('author_id', '==', auth.currentUser.uid));
+      const lessonsSnapshot = await getDocs(q);
+
+      const updatePromises = lessonsSnapshot.docs.map(doc =>
+        updateDoc(doc.ref, {
+          author_name: editProfileForm.displayName.trim(),
+          author_avatar: editProfileForm.photoURL || `https://i.pravatar.cc/128?u=${auth.currentUser.uid}`,
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      // Оновлюємо локальний стан
+      setProfileData(prev => ({
+        ...prev,
+        displayName: editProfileForm.displayName.trim(),
+        bio: editProfileForm.bio || '',
+        photoURL: editProfileForm.photoURL || null,
+      }));
+
+      // Закриваємо модальне вікно
       setisEditProfileModalOpen(false);
+
+      alert("Профіль успішно оновлено!");
+
+      // Оновлюємо сторінку для відображення змін
       window.location.reload();
     } catch (error) {
-      alert("Помилка при збереженні профілю");
+      console.error("Помилка оновлення профілю:", error);
+      alert("Не вдалося оновити профіль. Спробуйте пізніше.");
     }
   };
 
@@ -939,26 +986,94 @@ export default function Profile({ user, onLoginClick }) {
         </div>
       )}
 
-      { /* Модальне вікно редагування аватара */}
+      {/* Модальне вікно редагування аватара */}
       {isAvatarModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-8">
             <h2 className="text-2xl font-semibold mb-6">Змінити фото профілю</h2>
-            <input
-              type="text"
-              placeholder="Вставте пряме посилання на зображення"
-              value={newAvatarUrl}
-              onChange={(e) => setNewAvatarUrl(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-2xl mb-4"
-            />
-            {avatarError && <p className="text-red-600 text-sm mb-4">{avatarError}</p>}
 
-            <div className="flex gap-4">
-              <button onClick={() => setIsAvatarModalOpen(false)} className="flex-1 py-3 border rounded-3xl">Скасувати</button>
+            {/* Поле для введення посилання на фото */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Посилання на фото профілю *
+              </label>
+              <input
+                type="url"
+                value={newAvatarUrl}
+                onChange={(e) => {
+                  setNewAvatarUrl(e.target.value);
+                  setAvatarError('');
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-sky-500"
+                placeholder="https://example.com/avatar.jpg"
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                💡 Вставте пряме посилання на зображення (jpg, png, gif, webp)
+              </p>
+              {avatarError && (
+                <p className="text-sm text-red-500 mt-1">{avatarError}</p>
+              )}
+            </div>
+
+            {/* Індикатор перевірки зображення */}
+            {avatarValidating && (
+              <div className="flex items-center justify-center p-8 bg-gray-100 rounded-xl mt-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
+                <span className="ml-2 text-gray-500">Перевірка зображення...</span>
+              </div>
+            )}
+
+            {/* Попередній перегляд аватара */}
+            {newAvatarUrl && !avatarValidating && !avatarError && (
+              <div className="mt-4">
+                <p className="text-sm text-gray-600 mb-2">Попередній перегляд:</p>
+                <div className="relative group flex justify-center">
+                  <img
+                    src={newAvatarUrl}
+                    alt="Новий аватар"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 shadow-lg"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/128?text=Error';
+                      setAvatarError('Не вдалося завантажити зображення. Перевірте посилання.');
+                    }}
+                    onLoad={() => {
+                      setAvatarError('');
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Поточний аватар (для порівняння) */}
+            {profileData?.photoURL && profileData.photoURL !== newAvatarUrl && !avatarValidating && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm text-gray-600 mb-2">Поточне фото:</p>
+                <div className="flex justify-center">
+                  <img
+                    src={profileData.photoURL}
+                    alt="Поточний аватар"
+                    className="w-20 h-20 rounded-full object-cover border border-gray-200"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Кнопки дій */}
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={() => {
+                  setIsAvatarModalOpen(false);
+                  setNewAvatarUrl('');
+                  setAvatarError('');
+                }}
+                className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Скасувати
+              </button>
               <button
                 onClick={saveAvatar}
-                disabled={avatarValidating || !newAvatarUrl}
-                className="flex-1 py-3 bg-black text-white rounded-3xl disabled:bg-gray-400"
+                disabled={avatarValidating || !newAvatarUrl || !!avatarError}
+                className="flex-1 py-3 bg-black text-white rounded-xl hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {avatarValidating ? "Перевірка..." : "Зберегти фото"}
               </button>
@@ -969,26 +1084,99 @@ export default function Profile({ user, onLoginClick }) {
 
       {/* Повне редагування профілю */}
       {isEditProfileModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-semibold mb-6">Редагувати профіль</h2>
+
             <div className="space-y-6">
+              {/* Ім'я */}
               <div>
-                <label className="block text-sm font-medium mb-2">Ім'я</label>
-                <input type="text" value={editProfileForm.displayName} onChange={(e) => setisEditProfileModalOpen({ ...editProfileForm, displayName: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
+                <label className="block text-sm font-medium mb-2">Ім'я *</label>
+                <input
+                  type="text"
+                  value={editProfileForm.displayName}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, displayName: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-sky-500"
+                  placeholder="Ваше ім'я"
+                  required
+                />
+                {editProfileForm.displayName.trim().length < 2 && editProfileForm.displayName && (
+                  <p className="text-xs text-red-500 mt-1">Ім'я повинно містити хоча б 2 символи</p>
+                )}
               </div>
+
+              {/* Посилання на фото */}
               <div>
-                <label className="block text-sm font-medium mb-2">Посилання на фото</label>
-                <input type="text" value={editProfileForm.photoURL} onChange={(e) => setisEditProfileModalOpen({ ...editProfileForm, photoURL: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
+                <label className="block text-sm font-medium mb-2">Посилання на фото профілю</label>
+                <input
+                  type="url"
+                  value={editProfileForm.photoURL}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, photoURL: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-sky-500"
+                  placeholder="https://example.com/avatar.jpg"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Залиште порожнім, щоб використовувати стандартний аватар
+                </p>
               </div>
+
+              {/* Попередній перегляд фото */}
+              {editProfileForm.photoURL && (
+                <div className="flex justify-center">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-2">Попередній перегляд:</p>
+                    <img
+                      src={editProfileForm.photoURL}
+                      alt="Попередній перегляд аватара"
+                      className="w-24 h-24 rounded-full object-cover mx-auto border-2 border-gray-200"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/96?text=Error';
+                        setAvatarError('Невірне посилання на зображення');
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Біо */}
               <div>
                 <label className="block text-sm font-medium mb-2">Біо</label>
-                <textarea value={editProfileForm.bio} onChange={(e) => setisEditProfileModalOpen({ ...editProfileForm, bio: e.target.value })} rows="4" className="w-full px-4 py-3 border border-gray-300 rounded-2xl" />
+                <textarea
+                  value={editProfileForm.bio}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, bio: e.target.value })}
+                  rows="4"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-sky-500 resize-none"
+                  placeholder="Розкажіть про себе..."
+                  maxLength="200"
+                />
+                <p className="text-xs text-gray-500 mt-1 text-right">
+                  {editProfileForm.bio.length}/200 символів
+                </p>
               </div>
             </div>
+
+            {/* Кнопки дій */}
             <div className="flex gap-4 mt-8">
-              <button onClick={() => setisEditProfileModalOpen(false)} className="flex-1 py-3 border rounded-3xl">Скасувати</button>
-              <button onClick={saveProfile} className="flex-1 py-3 bg-black text-white rounded-3xl">Зберегти зміни</button>
+              <button
+                onClick={() => {
+                  setisEditProfileModalOpen(false);
+                  // Скидаємо форму до початкових даних
+                  setEditProfileForm({
+                    displayName: profileData?.displayName || user?.displayName || '',
+                    bio: profileData?.bio || '',
+                    photoURL: profileData?.photoURL || user?.photoURL || '',
+                  });
+                }}
+                className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={saveProfile}
+                className="flex-1 py-3 bg-black text-white rounded-xl hover:bg-gray-900 transition-colors"
+              >
+                Зберегти зміни
+              </button>
             </div>
           </div>
         </div>
