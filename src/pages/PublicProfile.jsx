@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
+import Footer from '../components/layout/Footer';
 import LessonCard from '../components/lesson/LessonCard';
 import { getAllLessons } from '../firebase/firestoreService';
 import { db } from '../firebase/config';
@@ -368,6 +369,8 @@ export default function PublicProfile({ user, onLoginClick }) {
           )}
         </div>
       </div>
+      <Footer 
+            />
     </div>
   );
 }

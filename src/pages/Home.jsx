@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
+import Footer from '../components/layout/Footer';
 import { auth } from '../firebase/config';
 import LessonCard from '../components/lesson/LessonCard';
 import { doc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
@@ -101,6 +102,11 @@ export default function Home({ user, onLoginClick }) {
   }, [searchTerm, selectedCategories, lessons]);
 
   const openLesson = async (lessonId) => {
+    if (!user) {
+      onLoginClick();
+      return;
+    }
+
     try {
       await incrementViews(lessonId);
     } catch (e) {
@@ -193,6 +199,8 @@ export default function Home({ user, onLoginClick }) {
           </div>
         )}
       </div>
+      <Footer 
+      />
     </div>
   );
 }

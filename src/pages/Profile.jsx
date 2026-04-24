@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
+import Footer from '../components/layout/Footer';
 import LessonCard from '../components/lesson/LessonCard';
 import { auth } from '../firebase/config';
 import { doc, getDoc, updateDoc, deleteDoc, writeBatch, collection, query, where, getCountFromServer, getDocs } from 'firebase/firestore';
@@ -1181,6 +1182,8 @@ export default function Profile({ user, onLoginClick }) {
           </div>
         </div>
       )}
+      <Footer 
+            />
     </div>
   );
 }

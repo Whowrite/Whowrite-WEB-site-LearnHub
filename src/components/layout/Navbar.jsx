@@ -52,6 +52,7 @@ export default function Navbar({ user: initialUser, onLoginClick, searchTerm, on
     if (window.confirm("Ви дійсно хочете вийти з акаунту?")) {
       try {
         await logoutUser();
+        navigate(0); // Перезавантажуємо сторінку для оновлення стану
       } catch (error) {
         console.error("Помилка виходу:", error);
         alert("Не вдалося вийти. Спробуйте ще раз.");
