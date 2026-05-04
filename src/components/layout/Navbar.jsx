@@ -132,7 +132,7 @@ export default function Navbar({ user: initialUser, onLoginClick, searchTerm, on
                 onClick={() => navigate('/profile')}
               >
                 <img 
-                  src={user.photoURL || `https://i.pravatar.cc/128?u=${user.uid}`} 
+                  src={user.avatar_url || `https://i.pravatar.cc/128?u=${user.uid}`} 
                   alt={user.displayName || 'Користувач'} 
                   className="w-9 h-9 rounded-2xl object-cover ring-2 ring-white shadow-sm"
                 />
